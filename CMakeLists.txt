@@ -13,7 +13,8 @@ FetchContent_Declare(
   GIT_TAG        v0.3.9
 )
 FetchContent_MakeAvailable(StereoKitC)
-
+find_package( OpenCV REQUIRED )
+include_directories( ${OpenCV_INCLUDE_DIRS} )
 # Add source files to our target executable
 add_executable( SKNativeTemplate
   src/main.cpp
@@ -22,4 +23,5 @@ add_executable( SKNativeTemplate
 # Link to dependencies
 target_link_libraries( SKNativeTemplate
   PRIVATE StereoKitC
+  ${OpenCV_LIBS}
 )
