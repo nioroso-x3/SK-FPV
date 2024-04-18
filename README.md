@@ -1,12 +1,19 @@
-# StereoKit Template for CMake
+# FPV VR video player using OpenCV+gstreamer and StereoKit
 
-This is a basic StereoKit template for C/C++ using [CMake](https://cmake.org/). It's straightforward and portable way to build native StereoKit apps on Linux, Windows, and Web (via [emcc](https://emscripten.org/))! This template works quite well with VS Code, and following the prompts provided there can get you running pretty quickly. CMake can also be used to generate a Visual Studio solution, for those that prefer that workflow.
+Rough first functional release. My drone has two cameras, so there are two video surfaces.
 
-This template directly references and builds the StereoKit repository rather than using pre-built binaries, so this template could also be great for those that wish to fork and modify StereoKit's code!
+Compiles on Ubuntu 22.04. Follow the instructions for compiling, if you do not set the build type to Debug it wont work.
+
+Receives a 16:9 and a 4:3 RTP h264 streams on ports 5600 and 5601. You can edit the gstreamer pipeline to change the codecs.
+
+Look at the comments in the code to modify the surface aspect ratio or position.
+
+
 
 ## Linux pre-requisites
 
-Linux users will need to install some pre-requisites for this template to compile.
+Linux users will need to install some pre-requisites for this template to compile. Monado and your headsets drivers should be working first.
+You will also need OpenCV with gstreamer.
 
 ```shell
 sudo apt-get update
@@ -32,3 +39,10 @@ cmake --build . -j8 --config Debug
 # Run the app
 ./SKNativeTemplate
 ```
+
+## TODO
+
+Add MAVLINK HUD
+Add RC control using the headset controllers / movement
+
+
