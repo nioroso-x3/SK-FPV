@@ -123,7 +123,6 @@ void draw_hud()
       //flip buffers
       cur_hud_buf = !cur_hud_buf;
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      deg+=5;
 
    }
 
