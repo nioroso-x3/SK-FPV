@@ -6,14 +6,20 @@ Compiles on Ubuntu 22.04. Follow the instructions for compiling, if you do not s
 
 Receives a 16:9 and a 4:3 RTP h264 streams on ports 5600 and 5601. You can edit the gstreamer pipeline to change the codecs.
 
+Listens to mavlink at port 14540, change the corresponding line in the source to the port that you use
+
 Look at the comments in the code to modify the surface aspect ratio or position.
 
 
 
 ## Linux pre-requisites
 
-Linux users will need to install some pre-requisites for this template to compile. Monado and your headsets drivers should be working first.
-You will also need OpenCV with gstreamer.
+Linux users will need to install some pre-requisites for this template to compile. 
+
+Monado and your headsets drivers should be working first, for example on my CV1 I also need the OpenHMD libraries.
+
+You will also need OpenCV with gstreamer and MAVSDK https://github.com/mavlink/MAVSDK installed and locatable by CMake.
+
 
 ```shell
 sudo apt-get update
@@ -42,7 +48,10 @@ cmake --build . -j8 --config Debug
 
 ## TODO
 
-Add MAVLINK HUD
+Finish MAVLINK HUD
+
+Add google maps window.
+
 Add RC control using the headset controllers / movement
 
 

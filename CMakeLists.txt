@@ -1,6 +1,6 @@
 # To use this template, 
 cmake_minimum_required(VERSION 3.11)
-project(SKNativeTemplate VERSION "0.1.0" LANGUAGES CXX C)
+project(FPV_VR VERSION "0.0.1" LANGUAGES CXX C)
 
 # Grab and build StereoKit from the GitHub repository. Here we're setting SK up
 # as a statically linked library.
@@ -14,14 +14,16 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(StereoKitC)
 find_package( OpenCV REQUIRED )
+find_package( MAVSDK REQUIRED )
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 # Add source files to our target executable
-add_executable( SKNativeTemplate
+add_executable( FPV_VR
   src/main.cpp
 )
 
 # Link to dependencies
-target_link_libraries( SKNativeTemplate
+target_link_libraries( FPV_VR
   PRIVATE StereoKitC
   ${OpenCV_LIBS}
+  MAVSDK::mavsdk
 )
