@@ -55,7 +55,7 @@ draw_line(cv::Mat&   mat, //matrix
 //first screen
 mesh_t     plane_mesh;
 material_t plane_mat;
-pose_t     plane_pose = {{0,0.12,-1.5f}, {0,0,0,1}};
+pose_t     plane_pose = {{0,0.3,-1.5f}, {0,0,0,1}};
 tex_t vid0;
 
 //second screen
@@ -77,14 +77,10 @@ cv::Mat buffer0[2];
 cv::Mat buffer1[2];
 cv::Mat buffer2[2];
 
-//HUD double buffer
-cv::Mat hud_buf[2];
-
 //Current buffer being used
 char cur_buffer0 = 0;
 char cur_buffer1 = 0;
 char cur_buffer2 = 0;
-char cur_hud_buf = 0;
 
 uint64_t cnt = 0;
 
@@ -134,7 +130,7 @@ void frame_grabber0()
 
   std::cerr << "Waiting for video 1" << std::endl;
 
-  bool cap0_open = cap0.open("udpsrc port=5600 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H264 ! queue ! rtph264depay ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=2 drop=true sync=false",cv::CAP_GSTREAMER);
+  bool cap0_open = cap0.open("udpsrc port=5600 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H264 ! queue ! rtph264depay ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
   
   if(!cap0.isOpened()){
       std::cerr << "Error opening video 1" << std::endl;
@@ -142,7 +138,9 @@ void frame_grabber0()
 
   std::cerr << "Starting video 1" << std::endl;
   while(cap0.isOpened()){
-    cap0.read(buffer0[!cur_buffer0]);
+    cv::Mat& buf = buffer0[!cur_buffer0];
+    cap0.read(buf);
+    tex_set_colors(vid0,buf.cols,buf.rows,(void*)buf.datastart);
     cur_buffer0 = !cur_buffer0;
   }
 }
@@ -154,7 +152,7 @@ void frame_grabber1()
 
   std::cerr << "Waiting for video 2" << std::endl;
 
-  bool cap1_open = cap1.open("udpsrc port=5601 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H264 ! queue ! rtph264depay ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=2 drop=true sync=false",cv::CAP_GSTREAMER);
+  bool cap1_open = cap1.open("udpsrc port=5601 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H264 ! queue ! rtph264depay ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
   
   if(!cap1.isOpened()){
       std::cerr << "Error opening video 2" << std::endl;
@@ -162,7 +160,9 @@ void frame_grabber1()
 
   std::cerr << "Starting video 2" << std::endl;
   while(cap1.isOpened()){
-    cap1.read(buffer1[!cur_buffer1]);
+    cv::Mat& buf = buffer1[!cur_buffer1];
+    cap1.read(buf);
+    tex_set_colors(vid1,buf.cols,buf.rows,(void*)buf.datastart);
     cur_buffer1 = !cur_buffer1;
   }
 }
@@ -231,15 +231,14 @@ void mavlink_thread()
 void draw_hud()
 {
 
-  hud_buf[0] = cv::Mat(1024,1024,CV_8UC4,HUD_COLOR_CLR);
-  hud_buf[1] = cv::Mat(1024,1024,CV_8UC4,HUD_COLOR_CLR);
+
+  cv::Mat buf = cv::Mat(1024,1024,CV_8UC4,HUD_COLOR_CLR);
 
   std::cerr << "Starting HUD thread" << std::endl;
   float r,p = 0;
   while(true){
-      cv::Mat& cur_frame = hud_buf[!cur_hud_buf];
       //clear buffer
-      cur_frame.setTo(HUD_COLOR_CLR);
+      buf.setTo(HUD_COLOR_CLR);
       //copy current values
       Telemetry::Position c_pos = vh_pos;
       Telemetry::EulerAngle c_att = vh_att;
@@ -252,38 +251,38 @@ void draw_hud()
       
       //draw roll
       r = -c_att.roll_deg * M_PI /180.0;
-      draw_line(cur_frame,cv::Point(512,512),512,r,2,HUD_COLOR,true);
-      draw_line(cur_frame,cv::Point(512,512),96,r,4,HUD_COLOR_CLR,true);
+      draw_line(buf,cv::Point(512,512),512,r,2,HUD_COLOR,true);
+      draw_line(buf,cv::Point(512,512),96,r,4,HUD_COLOR_CLR,true);
       //draw pitch
       p = c_att.pitch_deg * M_PI / 180.0;
 
 
 
       //using text as placeholders
-      cv::putText(cur_frame,"PITCH:",cv::Point(100,512),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
-      cv::putText(cur_frame,std::to_string(int(c_att.pitch_deg)),cv::Point(210,512),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
+      cv::putText(buf,"PITCH:",cv::Point(100,512),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
+      cv::putText(buf,std::to_string(int(c_att.pitch_deg)),cv::Point(210,512),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
 
-      cv::putText(cur_frame,"ALT:",cv::Point(770,512),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
-      cv::putText(cur_frame,std::to_string(c_pos.relative_altitude_m),cv::Point(880,512),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
+      cv::putText(buf,"ALT:",cv::Point(770,512),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
+      cv::putText(buf,std::to_string(c_pos.relative_altitude_m),cv::Point(880,512),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
  
-      cv::putText(cur_frame,"AS:",cv::Point(770,542),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
-      cv::putText(cur_frame,std::to_string(c_fw.airspeed_m_s),cv::Point(880,542),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
+      cv::putText(buf,"AS:",cv::Point(770,542),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
+      cv::putText(buf,std::to_string(c_fw.airspeed_m_s),cv::Point(880,542),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
  
-      cv::putText(cur_frame,"GS:",cv::Point(770,572),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
-      cv::putText(cur_frame,std::to_string(c_gpsr.velocity_m_s),cv::Point(880,572),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
+      cv::putText(buf,"GS:",cv::Point(770,572),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
+      cv::putText(buf,std::to_string(c_gpsr.velocity_m_s),cv::Point(880,572),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
     
       
-      cv::putText(cur_frame,"VOLT0:",cv::Point(10,800),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
-      cv::putText(cur_frame,std::to_string(c_bat0.voltage_v),cv::Point(120,800),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
+      cv::putText(buf,"VOLT0:",cv::Point(10,800),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
+      cv::putText(buf,std::to_string(c_bat0.voltage_v),cv::Point(120,800),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
 
-      cv::putText(cur_frame," AMP0:",cv::Point(10,830),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
-      cv::putText(cur_frame,std::to_string(c_bat0.current_battery_a),cv::Point(120,830),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
+      cv::putText(buf," AMP0:",cv::Point(10,830),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
+      cv::putText(buf,std::to_string(c_bat0.current_battery_a),cv::Point(120,830),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
 
-      cv::putText(cur_frame,"VOLT1:",cv::Point(10,860),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
-      cv::putText(cur_frame,std::to_string(c_bat1.voltage_v),cv::Point(120,860),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
+      cv::putText(buf,"VOLT1:",cv::Point(10,860),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
+      cv::putText(buf,std::to_string(c_bat1.voltage_v),cv::Point(120,860),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
 
-      cv::putText(cur_frame," AMP1:",cv::Point(10,890),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
-      cv::putText(cur_frame,std::to_string(c_bat1.current_battery_a),cv::Point(120,890),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
+      cv::putText(buf," AMP1:",cv::Point(10,890),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
+      cv::putText(buf,std::to_string(c_bat1.current_battery_a),cv::Point(120,890),cv::FONT_HERSHEY_DUPLEX,1.0,HUD_COLOR,2);
 
       //draw message if needed      
       if (status_counter){
@@ -291,10 +290,9 @@ void draw_hud()
 
       }
 
+      tex_set_colors(hud_tex,buf.cols,buf.rows,(void*)buf.datastart);
 
-      //flip buffers
-      cur_hud_buf = !cur_hud_buf;
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
    }
 
@@ -369,38 +367,25 @@ int main(int argc, char* argv[]) {
 
   std::cout << "Starting main loop" << std::endl;
   sk_run([]() {
-        cv::Mat& frame0 = buffer0[cur_buffer0];
-        cv::Mat& frame1 = buffer1[cur_buffer1];
-        cv::Mat& hud_fr = hud_buf[cur_hud_buf];
-        if(!frame0.empty()){
-          tex_set_colors(vid0,frame0.cols,frame0.rows,(void*)frame0.datastart);
-        }
-  
-        if(!frame1.empty()){
-          tex_set_colors(vid1,frame1.cols,frame1.rows,(void*)frame1.datastart);
-        }
-  
-        if(!hud_fr.empty()){
-          tex_set_colors(hud_tex,hud_fr.cols,hud_fr.rows,(void*)hud_fr.datastart);
-        }
-
+        //video plane 1
         ui_handle_begin("Plane", plane_pose, mesh_get_bounds(plane_mesh), false);
         render_add_mesh(plane_mesh, plane_mat, matrix_identity);
         ui_handle_end();
         
+        //video plane 2
         ui_handle_begin("Plane1", plane1_pose, mesh_get_bounds(plane1_mesh), false);
         render_add_mesh(plane1_mesh, plane1_mat, matrix_identity);
         ui_handle_end();
 
-
-        //setup hud
-        vec3 at = input_head()->position + input_head()->orientation * vec3_forward * 0.7f;
+        //setup hud position and orientation. HUD is always 1 unit in front of camera, facing it.
+        vec3 at = input_head()->position + input_head()->orientation * vec3_forward * 1.0f;
         quat ori = quat_lookat(input_head()->position,at);
-
+        //HUD plane
         ui_handle_begin("HUD", hud_pose, mesh_get_bounds(hud_mesh), false);
         render_add_mesh(hud_mesh, hud_mat, matrix_trs(at,ori,vec3_one));
         ui_handle_end();
          
+        //print some debug stuff if needed
         if(cnt % 100 == 0){
             //std::cout << hud_pose.orientation.x << " " << hud_pose.orientation.y << " " << hud_pose.orientation.z << " " << hud_pose.orientation.w << std::endl << std::endl;
             //std::cout << hud_pose.position.x << " " << hud_pose.position.y << " " << hud_pose.position.z << std::endl << std::endl;
