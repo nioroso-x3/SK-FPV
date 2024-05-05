@@ -1,0 +1,467 @@
+#include "hud.h"
+#include <cairommconfig.h>
+#include <cairomm/context.h>
+#include <cairomm/surface.h>
+
+using namespace sk;
+using namespace mavsdk;
+
+#define HUD_h 768
+#define HUD_w ((int)HUD_h*1.5)
+
+void drawHeading(Cairo::RefPtr<Cairo::Context> cr, 
+                 float x, 
+                 float y, 
+                 int step_range, 
+                 float heading,
+                 bool bottom) {
+    cr->save();
+    cr->translate(x, y);
+    float mf = 1;
+    if (bottom) {
+        mf = -1;
+    }
+
+    // Value indicator
+    float value = heading < 0 ? heading + 360 : heading ;
+
+    float font_size = 20;
+    cr->set_font_size(font_size);
+    int text = round(value);
+
+    Cairo::TextExtents text_extents;
+    cr->get_text_extents(std::to_string(text), text_extents);
+    float text_width = text_extents.width;
+
+    float text_side_border = 5;
+    float text_top_border = 4;
+    float length = text_side_border * 2 + text_width; // Total length
+    float height = text_top_border * 1.5 + font_size + length / 4; // Total height
+
+    cr->move_to(-length / 2, 0);
+    cr->line_to(length / 2, 0);
+    cr->line_to(length / 2, mf * (text_top_border * 1.5 + font_size));
+    cr->line_to(0, mf * height);
+    cr->line_to(-length / 2, mf * (text_top_border * 1.5 + font_size));
+    cr->close_path();
+    cr->stroke();
+
+
+    float tx = text_width / 2;
+    float ty = mf * (2 * text_top_border + font_size) / 2;
+    cr->move_to(-tx, ty+10);
+    cr->show_text(std::to_string(text));
+
+    // Scale
+    font_size = 16;
+    cr->set_font_size(font_size);
+
+    float text_border = 2;
+    float border = 4;
+    float step_length[3] = {16, 11, 7};
+
+    cr->translate(0, mf * (height + border));
+
+    cr->rectangle((-step_range * 16) / 2, 0, 16 * step_range, mf * (step_length[0] + 2 * text_border + font_size)+8);
+    cr->clip();
+
+    float step_margin = 5;
+    float step_zero_offset = ceil(step_range / 2) + step_margin;
+    float step_value_offset = floor(value);
+    float step_offset = value - step_value_offset;
+
+    cr->translate(-(step_zero_offset + step_offset) * 16, 0);
+
+    cr->move_to(0, 0);
+    for (int i = -step_zero_offset + step_value_offset; i < step_zero_offset + step_value_offset; i++) {
+        int pos_i = abs(i);
+        cr->move_to(0, 0);
+        if (pos_i % 10 == 0) {
+            cr->line_to(0, mf * step_length[0]);
+        } else if (pos_i % 5 == 0) {
+            cr->line_to(0, mf * step_length[1]);
+        } else {
+            cr->line_to(0, mf * step_length[2]);
+        }
+
+        if (pos_i % 90 == 0 || pos_i % 45 == 0 || pos_i % 10 == 0) {
+            std::string atext;
+            pos_i = pos_i % 360;
+            bool is_card = true;
+            if (pos_i == 0) {
+                atext = "N";
+            } else if (pos_i == 45) {
+                atext = "NE";
+            } else if (pos_i == 90 ) {
+                atext = "E";
+            } else if (pos_i == 135) {
+                atext = "SE";
+            } else if (pos_i == 180) {
+                atext = "S";
+            } else if (pos_i == 225) {
+                atext = "SW";
+            } else if (pos_i == 270) {
+                atext = "W";
+            } else if (pos_i == 315) {
+                atext = "NW";
+            } else {
+                atext = std::to_string(pos_i % 360);
+                is_card=false;
+            }
+            if (is_card){
+            cr->move_to(-5, mf * (step_length[0] + text_border + font_size / 2) +14);
+            cr->set_font_size(28);
+
+            }
+            else{
+            cr->move_to(-5, mf * (step_length[0] + text_border + font_size / 2) + 9);
+            cr->set_font_size(22);
+
+            }
+            cr->show_text(atext);
+        }
+
+        cr->translate(16, 0);
+    }
+
+    cr->stroke();
+    cr->restore();
+}
+
+void drawVerticalScale(Cairo::RefPtr<Cairo::Context> cr, 
+                       float                        x, 
+                       float                        y, 
+                       float                        value, 
+                       float                        stepRange, 
+                       bool                          right) {
+    cr->save();
+    cr->translate(x, y);
+
+    float mf = 1.0;
+    if (right) {
+        mf = -1.0;
+    }
+    float exampleValue = 9999;
+    // value indicator
+    float fontSize = 20.0;
+    cr->set_font_size(fontSize);
+
+    float textSideBorder = 5.0;
+    float textTopBorder = 4.0;
+    Cairo::TextExtents textExtents;
+    cr->get_text_extents(std::to_string(exampleValue), textExtents);
+    float textWidth = textExtents.width;
+
+    float height = fontSize + 2 * textTopBorder;
+    float length = textSideBorder * 2 + textWidth + height / 2; // total length
+
+    cr->move_to(0, -height / 2);
+    cr->line_to(mf * (textSideBorder * 2 + textWidth), -height / 2);
+    cr->line_to(mf * length, 0);
+    cr->line_to(mf * (textSideBorder * 2 + textWidth), height / 2);
+    cr->line_to(0, height / 2);
+    cr->close_path();
+    cr->stroke();
+    cr->move_to(right ? -textSideBorder - textWidth +40 : textSideBorder + textWidth -90, 8);
+    
+    std::string str_v = std::to_string((int)value);
+    if (str_v.size() < 4) str_v.insert(str_v.begin(), 4 -str_v.size(), ' ');
+    
+    cr->show_text(str_v);
+
+    // scale |----I----|----I----|----I----|
+    fontSize = 16.0;
+    cr->set_font_size(fontSize);
+
+    float textBorder = 3.0;
+    float border = 4.0;
+    float stepLength[] = {16.0, 11.0, 7.0};
+
+    if (!right) {
+        cr->move_to(0, 0);
+    }
+
+    // space from value indicator
+    cr->translate(mf * (length + border), 0);
+
+    // visible step range clip
+    //
+    //
+    //
+    int clipr = 0;
+    int clipl = 0;
+    if (right) clipr= -75;
+    if (right) clipl= 50;
+    cr->rectangle(clipr, -((stepRange * 10) / 2), mf * stepLength[0] + 2 * textBorder + textExtents.width + clipl, stepRange * 10);
+    cr->clip();
+
+    float stepMargin = 5.0; // top and bottom extra steps
+    float stepZeroOffset = ceil(stepRange / 2) + stepMargin; // '0' offset from bottom (35.5 -> 18, 35 -> 18)
+    float stepValueOffset = floor(value); // 35.5 -> 35
+    float stepOffset = value - stepValueOffset; // 35.5 -> 0.5
+
+    cr->translate(0, (stepZeroOffset + stepOffset) * 10); // translate to start position
+
+    for (float i = -stepZeroOffset + stepValueOffset; i < stepZeroOffset + stepValueOffset; i++) {
+        cr->move_to(0, 0);
+        int mv = 0;
+        std::string str_i = std::to_string((int)i);
+        if (right && str_i.size() < 4){
+          str_i.insert(str_i.begin(), 4 -str_i.size(), ' ');
+        }
+        switch (abs((int)i) % 10) {
+            case 0:
+                cr->line_to(mf * stepLength[0], 0);
+                if (right) mv = 38;
+                cr->move_to(mf * (stepLength[0] + textBorder + mv), 0);
+                cr->show_text(str_i);
+                break;
+            case 5:
+                cr->line_to(mf * stepLength[1], 0);
+                break;
+            default:
+                cr->line_to(mf * stepLength[2], 0);
+                break;
+        }
+        cr->translate(0, -10);
+    }
+    cr->stroke();
+
+    cr->restore();
+}
+
+void drawFlightPath(Cairo::RefPtr<Cairo::Context> cr, 
+                    float x, 
+                    float y) {
+    cr->save(); // Save the current state of the Cairo context
+    cr->translate(x, y);
+
+    float r = 12; // radius for square
+
+    // Drawing a square
+    cr->begin_new_path();
+    cr->move_to(r, 0);
+    cr->line_to(0, r);
+    cr->line_to(-r, 0);
+    cr->line_to(0, -r);
+    cr->close_path();
+
+    // Defining length of extension lines
+    float line = 9;
+
+    // Right line
+    cr->move_to(r, 0);
+    cr->line_to(r + line, 0);
+
+    // Center top line
+    cr->move_to(0, -r);
+    cr->line_to(0, -r - line);
+
+    // Left line
+    cr->move_to(-r, 0);
+    cr->line_to(-r - line, 0);
+
+    cr->stroke(); // Execute all line drawing commands
+
+    cr->restore(); // Restore to the previous state (before translate)
+}
+
+void drawPitchLadder(Cairo::RefPtr<Cairo::Context> cr, float x, float y, int value) {
+    cr->save(); // Save the current state of the Cairo context
+    cr->translate(x, y);
+
+    float length = 200; // total length
+    float space = 80; // space between
+    float q = 12;
+
+    cr->begin_new_path();
+
+    // Right ladder
+    cr->move_to(space / 2, 0);
+    cr->line_to(length / 2 - q, 0);
+    cr->line_to(length / 2, value > 0 ? q : -q);
+
+    // Left ladder
+    cr->move_to(-space / 2, 0);
+    cr->line_to(-(length / 2 - q), 0);
+    cr->line_to(-length / 2, value > 0 ? q : -q);
+
+    cr->stroke();
+
+    // Setup font scale
+    cr->set_font_size(20); // Assuming you have a method or know how to scale it
+
+    // Text alignment setup (Cairo does not support direct text alignment. This has to be manually calculated)
+    Cairo::TextExtents te;
+    cr->get_text_extents("-90", te);
+    float textWidth = te.width;
+
+    // Right text
+    std::string rtext = std::to_string(value);
+    if (rtext.size() < 4) rtext.insert(rtext.begin(),4 - rtext.size(), ' ');
+    cr->move_to(length / 2 + 4 + textWidth -40, (value > 0 ? q / 2 : -q / 2)+5);
+    cr->show_text(rtext);
+
+    // Left text
+    cr->move_to(-(length / 2 + 4)-50, (value > 0 ? q / 2 : -q / 2) + 5);
+    cr->show_text(rtext);
+
+    cr->restore(); // Restore to the previous state (before translate)
+}
+
+
+
+void drawHorizonLadder(const Cairo::RefPtr<Cairo::Context>& cr, 
+                       float                               x, 
+                       float                               y, 
+                       float                               pixel_per_deg) {
+    cr->save();  // Save the current state of the context
+
+    // Constants
+    float length = 460;
+    float space = 80;
+    float q = 12;
+    float small_length = 26;  // Re-declare length for small dashes
+
+    // Translate the context to start point
+    cr->translate(x, y);
+
+    // Begin drawing the main part of the ladder
+    cr->begin_new_path();
+
+    // Draw right side of the horizon ladder
+    cr->move_to(space / 2, 0);
+    cr->line_to(length / 2 - q, 0);
+    cr->line_to(length / 2, q);
+
+    // Draw left side of the horizon ladder
+    cr->move_to(-space / 2, 0);
+    cr->line_to(-(length / 2 - q), 0);
+    cr->line_to(-length / 2, q);
+
+    cr->stroke();  // Apply the strokes
+
+    // Set dashed lines for indicating degrees of pitch
+    std::vector<double> dash_pattern = {6.0, 4.0};
+    cr->set_dash(dash_pattern, 0);
+
+    // Begin a new path for small dash lines
+    cr->begin_new_path();
+    for (int i = 0; i < 3; ++i) {
+        cr->translate(0, pixel_per_deg);  // Move down per degree
+
+        // Draw small horizontal lines on the right side
+        cr->move_to(space / 2, 0);
+        cr->line_to(space / 2 + small_length, 0);
+
+        // Draw small horizontal lines on the left side
+        cr->move_to(-space / 2, 0);
+        cr->line_to(-(space / 2 + small_length), 0);
+
+        cr->stroke();  // Apply the strokes
+    }
+
+    cr->set_dash(std::vector<double>(0), 0); // Resetting dash pattern to solid line
+
+    // Restore the context to its original state before translation
+    cr->translate(-x, -y - 3 * pixel_per_deg);
+    cr->restore();
+}
+
+void drawThrottle(const Cairo::RefPtr<Cairo::Context>& cr, float x, float y, float throttle) {
+    cr->save();
+    cr->set_font_size(25);
+
+    float border = 8;
+    float indexLength = 6;
+    float range = 1.5 * M_PI;
+    float start = 0.5 * M_PI;
+    Cairo::TextExtents extents;
+    cr->get_text_extents("100%", extents);
+  
+    float radius = extents.width / 2 + border;
+    float angle = start + range * throttle;
+
+    float trX = x + radius + indexLength;
+    float trY = y - radius - indexLength;
+    cr->save(); // Save current transformation matrix
+    cr->translate(trX, trY);
+
+
+    cr->begin_new_sub_path();
+    cr->arc(0, 0, radius, start, angle);
+    cr->line_to((radius + indexLength) * cos(angle), (radius + indexLength) * sin(angle));
+    cr->stroke();
+
+    cr->arc(0, 0, radius, angle, start + range);
+    cr->stroke();
+
+    std::string v = std::to_string(static_cast<int>(throttle * 100)) + "%";
+    cr->get_text_extents(v, extents);
+    cr->move_to(-extents.width/2, extents.height/2);
+    cr->show_text(v);
+
+    cr->restore(); // Restore previous transformation matrix
+}
+
+void
+draw_cairo_hud()
+{
+    float pix_deg = 10;
+    float roll = std::isnan(vh_att.roll_deg) ? 0.0 : -vh_att.roll_deg;
+    float pitch = std::isnan(vh_att.pitch_deg) ? 0.0 : vh_att.pitch_deg;
+    float head = std::isnan(vh_att.yaw_deg) ? 0.0 : vh_att.yaw_deg;
+    float alt_a = std::isnan(vh_pos.absolute_altitude_m) ? 0.0 : vh_pos.absolute_altitude_m;
+    float alt_r = std::isnan(vh_pos.relative_altitude_m) ? 0.0 : vh_pos.relative_altitude_m;
+    double lat_d = std::isnan(vh_pos.latitude_deg) ? 0.0 : vh_pos.latitude_deg;
+    double lon_d = std::isnan(vh_pos.longitude_deg) ? 0.0 : vh_pos.longitude_deg;
+    float as = std::isnan(vh_fwing.airspeed_m_s) ? 0.0 : vh_fwing.airspeed_m_s;
+    float thr = std::isnan(vh_fwing.throttle_percentage) ? 0.0 : vh_fwing.throttle_percentage;
+    float gs = std::isnan(vh_gpsr.velocity_m_s) ? 0.0 : vh_gpsr.velocity_m_s;
+    auto surface = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, HUD_w, HUD_h);
+
+    auto cr = Cairo::Context::create(surface);
+    //set font seize
+    cr->select_font_face("@cairo:monospace",Cairo::FONT_SLANT_NORMAL,Cairo::FONT_WEIGHT_BOLD);
+    cr->set_font_size(20.0);
+
+    cr->set_source_rgba(0.0, 0.0, 0.0,0.0);
+    cr->paint();    // fill image with the color
+    cr->set_source_rgba(0.4, 1.0, 0.4, 0.7);
+    cr->set_line_width(5.0);
+    drawFlightPath(cr,HUD_w/2.0,HUD_h/2.0);
+    drawHeading(cr,HUD_w/2.0,5,60,head,false); 
+    drawVerticalScale(cr,0,HUD_h/2.0,as,40,false);
+    drawVerticalScale(cr,HUD_w,HUD_h/2.0,alt_r,40,true);
+    drawThrottle(cr,0,HUD_h/2.0 - 20,thr);
+    //drawVerticalScale(cr,0,HUD_h/2.0,as,40,false);
+
+    cr->save(); // Save the current state of the Cairo context
+    cr->translate(HUD_w/2.0,HUD_h/2.0);
+    // Pitch transformation
+    cr->translate(0, pitch * pix_deg);
+
+    // Roll transformation
+    cr->rotate(roll * (M_PI/180.0));
+
+
+    // Draw artificial horizon ladder
+    drawHorizonLadder(cr,0,0,pix_deg);
+    int pitchDegStep = 10;
+    // Top ladders
+    for (int deg = pitchDegStep; deg <= 90; deg += pitchDegStep) {
+        drawPitchLadder(cr, 0, -(deg * pix_deg), deg);
+    }
+
+    // Bottom ladders
+    for (int deg = -pitchDegStep; deg >= -90; deg -= pitchDegStep) {
+        drawPitchLadder(cr, 0, -(deg * pix_deg), deg);
+    }
+
+    cr->restore(); // Restore the initial state
+    //write data to hud texture
+    tex_set_colors(hud_tex,HUD_w,HUD_h,(void*)surface->get_data());
+
+}
+
+
