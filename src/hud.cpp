@@ -2,18 +2,27 @@
 #include <cairommconfig.h>
 #include <cairomm/context.h>
 #include <cairomm/surface.h>
+#include <sstream>
 
 using namespace sk;
 using namespace mavsdk;
 
-#define HUD_h 768
+#define HUD_h 800
 #define HUD_w ((int)HUD_h*1.5)
+
+std::string 
+deci(float i,int p){
+  std::stringstream s;
+  s << std::fixed << std::setprecision(p) << i;
+  return s.str();
+}
+
 
 void drawHeading(Cairo::RefPtr<Cairo::Context> cr, 
                  float x, 
                  float y, 
                  int step_range, 
-                 float heading,
+                 float value, //heading from 0 to 360
                  bool bottom) {
     cr->save();
     cr->translate(x, y);
@@ -23,7 +32,6 @@ void drawHeading(Cairo::RefPtr<Cairo::Context> cr,
     }
 
     // Value indicator
-    float value = heading < 0 ? heading + 360 : heading ;
 
     float font_size = 20;
     cr->set_font_size(font_size);
@@ -162,9 +170,9 @@ void drawVerticalScale(Cairo::RefPtr<Cairo::Context> cr,
     cr->line_to(0, height / 2);
     cr->close_path();
     cr->stroke();
-    cr->move_to(right ? -textSideBorder - textWidth +40 : textSideBorder + textWidth -90, 8);
+    cr->move_to(right ? -textSideBorder - textWidth +35 : textSideBorder + textWidth -90, 8);
     
-    std::string str_v = std::to_string((int)value);
+    std::string str_v = deci(value,1);
     if (str_v.size() < 4) str_v.insert(str_v.begin(), 4 -str_v.size(), ' ');
     
     cr->show_text(str_v);
@@ -404,50 +412,156 @@ void drawThrottle(const Cairo::RefPtr<Cairo::Context>& cr, float x, float y, flo
     cr->restore(); // Restore previous transformation matrix
 }
 
+void drawStatusMsg(const Cairo::RefPtr<Cairo::Context>& cr, float x, float y, std::string msg){
+  cr->save();
+  if(status_counter){
+    status_counter--;
+    cr->set_font_size(40);
+    cr->move_to(x,y);
+    cr->show_text("COM->");
+    cr->move_to(x+110,y);
+    cr->show_text(msg);
+  }
+  cr->restore();
+}
+
+
+void drawBatteryStatus(const Cairo::RefPtr<Cairo::Context>& cr, float x, float y, float v, float a){
+  cr->save();
+  //based on 4S battery, change it to match your vehicle.
+  float vmax = 16.8;
+  float vmin = 12.8;
+  float w = v*a;
+  float pct = ((v - vmin)/(vmax-vmin));
+  float bar_l = HUD_w/2;
+  cr->translate(x,y);
+  cr->rectangle(0,-5,5,30);
+  cr->fill();
+  cr->rectangle(bar_l,-5,5,30);
+  cr->fill();
+  if(pct > 0.0){
+    float l = bar_l*pct;
+    cr->rectangle(0,0,l,20);
+    cr->fill();
+  }
+  cr->move_to(bar_l+5,10);
+  std::stringstream volts;
+  volts << deci(v,2) << " V";
+  cr->show_text(volts.str());
+  cr->move_to(bar_l+5,30);
+  std::stringstream amps;
+  amps << deci(a,1) << " A";
+  cr->show_text(amps.str());
+  cr->restore();
+}
+
+void drawSimpleLabel(const Cairo::RefPtr<Cairo::Context>& cr, float x, float y, std::string label, double value, int precision){
+  cr->save();
+  Cairo::TextExtents t;
+  cr->get_text_extents(label,t);
+  cr->translate(x,y);
+  cr->move_to(0,0);
+  cr->show_text(label);
+  cr->move_to(t.width+8,0);
+  cr->show_text(deci(value,precision));
+  cr->restore();
+}
+
+void drawLabel(const Cairo::RefPtr<Cairo::Context>& cr, float x, float y, std::string txt,float s){
+  cr->save();
+  cr->translate(x,y);
+  cr->move_to(0,0);
+  cr->set_font_size(s);
+  cr->show_text(txt);
+  cr->restore();
+}
+
+void drawAircraftSymbol(const Cairo::RefPtr<Cairo::Context>& cr, float x, float y){
+  cr->save();
+  cr->set_line_width(3.0);
+  cr->translate(x,y);
+  cr->move_to(-25,0);
+  cr->line_to(-10,0);
+  cr->line_to(-5,6);
+  cr->line_to(0,0);
+  cr->line_to(5,6);
+  cr->line_to(10,0);
+  cr->line_to(25,0);
+  cr->restore();
+}
+
+
+
 void
 draw_cairo_hud()
 {
-    float pix_deg = 10;
+  
+  auto surface = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, HUD_w, HUD_h);
+
+  auto cr = Cairo::Context::create(surface);
+  cr->save(); // Save the initial state of the Cairo context
+  while(true){
+    float pix_deg = 30;
     float roll = std::isnan(vh_att.roll_deg) ? 0.0 : -vh_att.roll_deg;
     float pitch = std::isnan(vh_att.pitch_deg) ? 0.0 : vh_att.pitch_deg;
-    float head = std::isnan(vh_att.yaw_deg) ? 0.0 : vh_att.yaw_deg;
+    float head = std::isnan(vh_att.yaw_deg) ? 0.0 : vh_att.yaw_deg ;
+    if (head < 0.0) head += 360;
     float alt_a = std::isnan(vh_pos.absolute_altitude_m) ? 0.0 : vh_pos.absolute_altitude_m;
     float alt_r = std::isnan(vh_pos.relative_altitude_m) ? 0.0 : vh_pos.relative_altitude_m;
     double lat_d = std::isnan(vh_pos.latitude_deg) ? 0.0 : vh_pos.latitude_deg;
     double lon_d = std::isnan(vh_pos.longitude_deg) ? 0.0 : vh_pos.longitude_deg;
-    float as = std::isnan(vh_fwing.airspeed_m_s) ? 0.0 : vh_fwing.airspeed_m_s;
+    float as = std::isnan(vh_fwing.airspeed_m_s) ? 0.0 : vh_fwing.airspeed_m_s*3.6; //km/h
     float thr = std::isnan(vh_fwing.throttle_percentage) ? 0.0 : vh_fwing.throttle_percentage;
-    float gs = std::isnan(vh_gpsr.velocity_m_s) ? 0.0 : vh_gpsr.velocity_m_s;
-    auto surface = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, HUD_w, HUD_h);
+    float gs = std::isnan(vh_gpsr.velocity_m_s) ? 0.0 : vh_gpsr.velocity_m_s*3.6; //km/h
+    std::string lastMsg = vh_st_text.text;
+    float v0 = std::isnan(vh_bat0.voltage_v) ? 0.0 : vh_bat0.voltage_v;
+    float v1 = std::isnan(vh_bat1.voltage_v) ? 0.0 : vh_bat1.voltage_v;
+    float a0 = std::isnan(vh_bat0.current_battery_a) ? 0.0 : vh_bat0.current_battery_a;
+    float a1 = std::isnan(vh_bat1.current_battery_a) ? 0.0 : vh_bat1.current_battery_a;
+    int n_sats = vh_gpsi.num_satellites; 
+    std::string mode = vh_fmode;
 
-    auto cr = Cairo::Context::create(surface);
     //set font seize
     cr->select_font_face("@cairo:monospace",Cairo::FONT_SLANT_NORMAL,Cairo::FONT_WEIGHT_BOLD);
     cr->set_font_size(20.0);
-
-    cr->set_source_rgba(0.0, 0.0, 0.0,0.0);
+    
+    //clear canvas
+    cr->save();
+    cr->set_source_rgba(0,0,0,0);
+    cr->set_operator(Cairo::OPERATOR_SOURCE);
     cr->paint();    // fill image with the color
-    cr->set_source_rgba(0.4, 1.0, 0.4, 0.7);
+    cr->restore();
+    //set line and color
+    cr->set_source_rgba(0.7, 1.0, 0.7, 0.8);
     cr->set_line_width(5.0);
-    drawFlightPath(cr,HUD_w/2.0,HUD_h/2.0);
-    drawHeading(cr,HUD_w/2.0,5,60,head,false); 
-    drawVerticalScale(cr,0,HUD_h/2.0,as,40,false);
-    drawVerticalScale(cr,HUD_w,HUD_h/2.0,alt_r,40,true);
-    drawThrottle(cr,0,HUD_h/2.0 - 20,thr);
-    //drawVerticalScale(cr,0,HUD_h/2.0,as,40,false);
 
-    cr->save(); // Save the current state of the Cairo context
+    //begin drawing elements
+    //drawFlightPath(cr,HUD_w/2.0,HUD_h/2.0); need to figure out how to calculate the projection to the hud
+    drawAircraftSymbol(cr,HUD_w/2.0,HUD_h/2.0);
+    drawHeading(cr,HUD_w/2.0,5,60,head,false); 
+    drawVerticalScale(cr,4,HUD_h/2.0,as,40,false);
+    drawSimpleLabel(cr,0,(HUD_h/2.0)+40,"GS",gs,1);
+    drawVerticalScale(cr,HUD_w-4,HUD_h/2.0,alt_r,40,true);
+    drawSimpleLabel(cr,(HUD_w/24)*1,(HUD_h/2.0)-20,"W",v0*a0,1);
+    drawSimpleLabel(cr,(HUD_w/24)*22,(HUD_h/32)*1,"SATS",n_sats,0);
+    drawThrottle(cr,0,HUD_h/2.0 - 20,thr);
+    drawBatteryStatus(cr,HUD_w/4,(HUD_h/12)*11,v0,a0);
+    drawLabel(cr,0,(HUD_h/32)*24,mode,32);
+    drawStatusMsg(cr,(HUD_w/8),(HUD_h/10)*8,lastMsg);
+    
+    //translating, rolling and centering the canvas for the pitch ladder.
     cr->translate(HUD_w/2.0,HUD_h/2.0);
-    // Pitch transformation
+
+   // Roll transformation
+    cr->rotate(roll * (M_PI/180.0));
+   // Pitch transformation
     cr->translate(0, pitch * pix_deg);
 
-    // Roll transformation
-    cr->rotate(roll * (M_PI/180.0));
-
+    
 
     // Draw artificial horizon ladder
     drawHorizonLadder(cr,0,0,pix_deg);
-    int pitchDegStep = 10;
+    int pitchDegStep = 5;
     // Top ladders
     for (int deg = pitchDegStep; deg <= 90; deg += pitchDegStep) {
         drawPitchLadder(cr, 0, -(deg * pix_deg), deg);
@@ -461,7 +575,8 @@ draw_cairo_hud()
     cr->restore(); // Restore the initial state
     //write data to hud texture
     tex_set_colors(hud_tex,HUD_w,HUD_h,(void*)surface->get_data());
-
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  }
 }
 
 

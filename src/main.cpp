@@ -3,38 +3,6 @@
 using namespace sk;
 using namespace mavsdk;
 
-
-//drawing functions to be moved to another file
-
-//draws line, returns origin and end point of the line drawn as a 4 value scalar x1,y1,x2,y2
-cv::Scalar 
-draw_line(cv::Mat&   mat, //matrix 
-          cv::Point  ori,    //origin, either left top or center of the line
-          float      length,  //length
-          float      angle,  //angle in rads
-          int        thc,    // thickness
-          cv::Scalar color, // color
-          bool       center_ori){ //true for center or false for origin at left top
-  if(center_ori){
-    cv::Point right;
-    cv::Point left;
-    right.x = int(ori.x + length/2 * cos(angle) );
-    right.y = int(ori.y + length/2 * sin(angle) );
-    left.x=(ori.x - (right.x - ori.x));
-    left.y=(ori.y - (right.y - ori.y));
-    cv::line(mat,left,right,color,thc,cv::LINE_AA);
-    return cv::Scalar(left.x,left.y,right.x,right.y);
-  }
-  else{
-    cv::Point right;
-    right.x = int(ori.x + length * cos(angle) );
-    right.y = int(ori.y + length * sin(angle) );
-    cv::line(mat,ori,right,color,thc,cv::LINE_AA);
-    return cv::Scalar(ori.x,ori.y,right.x,right.y);
-  }
-}
-
-
 //should make this only one function but whatever
 void frame_grabber0()
 {
@@ -102,6 +70,7 @@ void mavlink_thread()
 
    // Instantiate plugins.
   auto telemetry = mavsdk::Telemetry{system.value()};
+  auto passthrough = mavsdk::MavlinkPassthrough{system.value()};
 
   telemetry.subscribe_position([](Telemetry::Position position) {
      vh_pos = position;
@@ -131,8 +100,27 @@ void mavlink_thread()
   telemetry.subscribe_status_text([](Telemetry::StatusText st_text){
      if (st_text.text != vh_st_text.text){
        vh_st_text = st_text;
-       status_counter = 20*15;
+       status_counter = 50*15; //show message for 15s with HUD running at 50 fps
      }
+  });
+
+  telemetry.subscribe_rc_status([](Telemetry::RcStatus rc_st){
+    vh_rc = rc_st;
+  });
+
+  //should put an if here to choose from Px4 or ardupilot but I dont use PX4
+  /*telemetry.subscribe_flight_mode([](Telemetry::FlightMode fmode){
+    int idx = (int)fmode;
+    if (idx < 18) vh_fmode = fmodes[(int)fmode];
+    else vh_fmode = "Unknown";
+    std::cout << vh_fmode  << " " << idx << std::endl;
+  });*/
+  //PX4 flight modes are different from ardupilot
+  passthrough.subscribe_message(MAVLINK_MSG_ID_HEARTBEAT,[](const mavlink_message_t &msg){
+    mavlink_heartbeat_t heartbeat;
+    mavlink_msg_heartbeat_decode(&msg,&heartbeat);
+    if ((0 <= heartbeat.custom_mode) && (heartbeat.custom_mode < 25)) vh_fmode = fmodes[heartbeat.custom_mode];
+    else vh_fmode = "UNKNOWN";
   });
 
 
@@ -147,14 +135,9 @@ void mavlink_thread()
 
 void draw_hud()
 {
-  cv::Mat buf = cv::Mat(1024,1024,CV_8UC4,HUD_COLOR_CLR);
-
   std::cerr << "Starting HUD thread" << std::endl;
-  while(true){
-      draw_cairo_hud();
-      std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-   }
+  draw_cairo_hud();
+  std::cerr << "HUD thread exited" << std::endl;
 }
 
 
@@ -187,7 +170,7 @@ int main(int argc, char* argv[]) {
   //setup hud
   hud_mesh = mesh_gen_plane({1.5,1},{0,0,1},{0,1,0});
   hud_mat = material_copy_id(default_id_material_unlit);
-  hud_tex = tex_create(tex_type_image_nomips,tex_format_rgba32_linear);
+  hud_tex = tex_create(tex_type_image_nomips,tex_format_rgba32);
   tex_set_address(hud_tex, tex_address_clamp);
 
 

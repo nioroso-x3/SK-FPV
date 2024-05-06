@@ -3,6 +3,59 @@
 using namespace sk;
 using namespace mavsdk;
 
+
+ //vector with the flightmodes
+std::string fmodes_PX4[] ={
+    "Unknown",
+    "FBWA",
+    "Autotune",
+    "Guided",
+    "Ready",
+    "Takeoff",
+    "Hold",
+    "Mission",
+    "RTL",
+    "Land",
+    "Offboard",
+    "FollowMe",
+    "Manual",
+    "Altctl",
+    "Posctl",
+    "Acro",
+    "Rattitude",
+    "Stabilized"};
+
+
+std::string fmodes[] ={
+"MANUAL",
+"CIRCLE",
+"STABILIZE",
+"TRAINING",
+"ACRO",
+"FBWA",
+"FBWB",
+"CRUISE",
+"AUTOTUNE",
+"9",
+"Auto",
+"RTL",
+"Loiter",
+"TAKEOFF",
+"AVOID_ADSB",
+"Guided",
+"QSTABILIZE",
+"QHOVER",
+"QLOITER",
+"QLAND",
+"QRTL",
+"QAUTOTUNE",
+"QACRO",
+"THERMAL",
+"LOITERQLAND"};
+
+
+
+
 mesh_t     plane_mesh;
 material_t plane_mat;
 pose_t     plane_pose = {{0,0.3,-1.5f}, {0,0,0,1}};
@@ -64,4 +117,9 @@ Telemetry::RawGps vh_gpsr;
 int status_counter = 0;
 Telemetry::StatusText vh_st_text;
 
+//rc signal strenght
+Telemetry::RcStatus vh_rc;
+
+//flight mode
+std::string vh_fmode;
 

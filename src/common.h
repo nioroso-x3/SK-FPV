@@ -9,6 +9,7 @@
 #include <mavsdk/mavsdk.h>
 #include <mavsdk/plugins/action/action.h>
 #include <mavsdk/plugins/telemetry/telemetry.h>
+#include <mavsdk/plugins/mavlink_passthrough/mavlink_passthrough.h>
 #include <chrono>
 #include <cmath>
 
@@ -16,6 +17,11 @@
 #define HUD_COLOR_CLR cv::Scalar(0,0,0,0)
 using namespace mavsdk;
 using namespace sk;
+
+ //vector with the flightmodes
+extern std::string fmodes[];
+extern std::string fmodes_PX4[];
+
 //pose_t controls location, X (left/right), Y(up/down), Z(front/back). The second argument is a quartenion, you can search for calculators if you want to change the screen angle and rotation.
 
 //Globals so all threads can access them
@@ -75,10 +81,15 @@ extern Telemetry::GpsInfo vh_gpsi;
 //vehicle raw gps info, velocity_m_s is the ground speed
 extern Telemetry::RawGps vh_gpsr;
 
-
 //vehicle status messages
 //should hold the last status
 extern int status_counter;
 extern Telemetry::StatusText vh_st_text;
+
+//rc signal strenght
+extern Telemetry::RcStatus vh_rc;
+
+//flight mode
+extern std::string vh_fmode;
 
 #endif
