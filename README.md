@@ -2,11 +2,11 @@
 
 Rough first functional release. My drone has two cameras, so there are two video surfaces.
 
-Compiles on Ubuntu 22.04. Follow the instructions for compiling, if you do not set the build type to Debug it wont work.
+Compiles and works on Ubuntu 22.04. Tested on Ubuntu 24.04, but it seems OpenCV 4.6 Gstreamer support is broken as VideoCapture objects dont seem to work.
 
-Receives a 16:9 and a 4:3 RTP h264 streams on ports 5600 and 5601. You can edit the gstreamer pipeline to change the codecs.
+Receives a 16:9 and and two 4:3 RTP h264 streams on ports 5600,5601,5602. You can edit the gstreamer pipelines to change the codecs/ports.
 
-Listens to mavlink at port 14540, change the corresponding line in the source to the port that you use
+Listens to mavlink at udp://0.0.0.0:14551, change the corresponding line in mavlink_setup.cpp to another address or a serial port.
 
 Look at the comments in the code to modify the surface aspect ratio or position.
 
@@ -16,9 +16,14 @@ Look at the comments in the code to modify the surface aspect ratio or position.
 
 Linux users will need to install some pre-requisites for this template to compile. 
 
-Monado and your headsets drivers should be working first, for example on my CV1 I also need the OpenHMD libraries.
 
-You will also need OpenCV with gstreamer and MAVSDK https://github.com/mavlink/MAVSDK installed and locatable by CMake.
+* Monado and your headsets drivers should be working first, for example on my CV1 I also need the OpenHMD libraries.
+
+* OpenCV with gstreamer, Ubuntu 22.04 has it enabled by default
+
+* MAVSDK https://github.com/mavlink/MAVSDK 
+
+* libcairomm-1.0 for the HUD
 
 
 ```shell
@@ -38,12 +43,12 @@ mkdir build
 cd build
 
 # Configure the build
-cmake .. -DCMAKE_BUILD_TYPE=Debug
+cmake .. 
 # Build
-cmake --build . -j8 --config Debug
+make -j 4
 
 # Run the app
-./SKNativeTemplate
+./SK_FPV
 ```
 
 ## TODO
@@ -51,6 +56,8 @@ cmake --build . -j8 --config Debug
 Finish MAVLINK HUD
 
 Add google maps window.
+
+Add stabilization
 
 Add RC control using the headset controllers / movement
 

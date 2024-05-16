@@ -1,14 +1,13 @@
 #include "common.h"
 #include "hud.h"
+#include "mavlink_setup.h"
+
 using namespace sk;
 using namespace mavsdk;
 
 //should make this only one function but whatever
 void frame_grabber0()
 {
-  buffer0[0] = cv::Mat(512,512,CV_8UC4,HUD_COLOR_CLR);
-  buffer0[1] = cv::Mat(512,512,CV_8UC4,HUD_COLOR_CLR);
-
   std::cerr << "Waiting for video 1" << std::endl;
   cv::VideoCapture cap;
   bool cap_open = cap.open("udpsrc port=5600 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H264 ! queue ! rtph264depay ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
@@ -18,11 +17,10 @@ void frame_grabber0()
   }
 
   std::cerr << "Starting video 1" << std::endl;
+  cv::Mat buf;
   while(cap.isOpened()){
-    cv::Mat& buf = buffer0[!cur_buffer0];
     cap.read(buf);
     tex_set_colors(vid0,buf.cols,buf.rows,(void*)buf.datastart);
-    cur_buffer0 = !cur_buffer0;
   }
   cap.release();
   //something crashed the decoder
@@ -30,9 +28,6 @@ void frame_grabber0()
 
 void frame_grabber1()
 {
-  buffer1[0] = cv::Mat(512,512,CV_8UC4,HUD_COLOR_CLR);
-  buffer1[1] = cv::Mat(512,512,CV_8UC4,HUD_COLOR_CLR);
-
   std::cerr << "Waiting for video 2" << std::endl;
   cv::VideoCapture cap;
   bool cap_open = cap.open("udpsrc port=5601 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H264 ! queue ! rtph264depay ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
@@ -42,95 +37,63 @@ void frame_grabber1()
   }
 
   std::cerr << "Starting video 2" << std::endl;
+  cv::Mat buf;
   while(cap.isOpened()){
-    cv::Mat& buf = buffer1[!cur_buffer1];
     cap.read(buf);
     tex_set_colors(vid1,buf.cols,buf.rows,(void*)buf.datastart);
-    cur_buffer1 = !cur_buffer1;
+   
   }
   cap.release();
 }
 
+void frame_grabber2()
+{
+  std::cerr << "Waiting for video 3" << std::endl;
+  cv::VideoCapture cap;
+  bool cap_open = cap.open("udpsrc port=5602 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H264 ! queue ! rtph264depay ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
+  
+  if(!cap.isOpened()){
+      std::cerr << "Error opening video 3" << std::endl;
+  }
+
+  std::cerr << "Starting video 3" << std::endl;
+
+
+
+  cv::Mat buf;
+  cv::Mat crop;
+  int w;
+  int h;
+  int w2;
+  cv::Rect grayIR;
+  cv::Rect colorRGB;
+  while(cap.isOpened()){
+    cap.read(buf);
+    w = buf.cols;
+    w2 = int(w/2);
+    h = buf.rows;
+    grayIR = cv::Rect(0,0,w2,h);
+    colorRGB = cv::Rect(w2,0,w2,h);
+    if (gnd_cam_color) crop = buf(colorRGB).clone();
+    else crop = buf(grayIR).clone();
+    tex_set_colors(vid2,crop.cols,crop.rows,(void*)crop.datastart);
+   
+  }
+  cap.release();
+}
+
+
+void skybox_thread(){
+  //this will grab video from the 360 cameras and convert it to a equirect cubemap
+  
+
+}
+
+
 void mavlink_thread()
 {
-  std::cerr << "Started mavlink setup thread" << std::endl;
-  Mavsdk mavsdk{Mavsdk::Configuration{Mavsdk::ComponentType::GroundStation}};
-  ConnectionResult connection_result = mavsdk.add_any_connection("udp://0.0.0.0:14551");
-
-  if (connection_result != ConnectionResult::Success) {
-      std::cerr << "Connection failed: " << connection_result << '\n';
-  }
-
-  auto system = mavsdk.first_autopilot(3.0);
-  while(!system) {
-      std::cerr << "Connection timeout, waiting 30 seconds " << std::endl;
-      system = mavsdk.first_autopilot(30.0);
-  }
-
-
-   // Instantiate plugins.
-  auto telemetry = mavsdk::Telemetry{system.value()};
-  auto passthrough = mavsdk::MavlinkPassthrough{system.value()};
-
-  telemetry.subscribe_position([](Telemetry::Position position) {
-     vh_pos = position;
-  });
-  telemetry.subscribe_attitude_euler([](Telemetry::EulerAngle att){
-     vh_att = att;
-  });
-  telemetry.subscribe_battery([](Telemetry::Battery bat){
-     if (bat.id == 0){
-        vh_bat0 = bat;
-     }
-     if (bat.id == 1){
-        vh_bat1 = bat;
-     }
-  });
-  telemetry.subscribe_fixedwing_metrics([](Telemetry::FixedwingMetrics fwing){
-     vh_fwing = fwing;
-  });
-  telemetry.subscribe_gps_info([](Telemetry::GpsInfo gpsi){
-     vh_gpsi = gpsi;
-  });
-   telemetry.subscribe_raw_gps([](Telemetry::RawGps gpsr){
-     vh_gpsr = gpsr;
-  });
- 
-
-  telemetry.subscribe_status_text([](Telemetry::StatusText st_text){
-     if (st_text.text != vh_st_text.text){
-       vh_st_text = st_text;
-       status_counter = 50*15; //show message for 15s with HUD running at 50 fps
-     }
-  });
-
-  telemetry.subscribe_rc_status([](Telemetry::RcStatus rc_st){
-    vh_rc = rc_st;
-  });
-
-  //should put an if here to choose from Px4 or ardupilot but I dont use PX4
-  /*telemetry.subscribe_flight_mode([](Telemetry::FlightMode fmode){
-    int idx = (int)fmode;
-    if (idx < 18) vh_fmode = fmodes[(int)fmode];
-    else vh_fmode = "Unknown";
-    std::cout << vh_fmode  << " " << idx << std::endl;
-  });*/
-  //PX4 flight modes are different from ardupilot
-  passthrough.subscribe_message(MAVLINK_MSG_ID_HEARTBEAT,[](const mavlink_message_t &msg){
-    mavlink_heartbeat_t heartbeat;
-    mavlink_msg_heartbeat_decode(&msg,&heartbeat);
-    if ((0 <= heartbeat.custom_mode) && (heartbeat.custom_mode < 25)) vh_fmode = fmodes[heartbeat.custom_mode];
-    else vh_fmode = "UNKNOWN";
-  });
-
-
-  std::cerr << "Mavlink thread going to sleep" << std::endl;
-  while(true){
-    //maybe do some health checks in this loop
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-  }
-
-
+  start_mavlink_thread();
+  std::cerr << "Mavlink thread exited" << std::endl;
 }
 
 void draw_hud()
@@ -146,29 +109,34 @@ int main(int argc, char* argv[]) {
   //initialize stereokit
   sk_settings_t settings = {};
 	
-  settings.app_name           = "SKNativeTemplate";
+  settings.app_name           = "SK_FPV";
 	settings.assets_folder      = "Assets";
 	settings.display_preference = display_mode_mixedreality;
 	
   if (!sk_init(settings))
 		return 1;
-
+  
   //setup first screen, we generate a plane with 16:9 ratio
-  plane_mesh = mesh_gen_plane({3,1.6875},{0,0,1},{0,1,0});
+  plane_mesh = mesh_gen_plane({1.777f*p1s,p1s},{0,0,1},{0,1,0});
   plane_mat = material_copy_id(default_id_material_unlit);
   vid0 = tex_create(tex_type_image_nomips,tex_format_rgba32);
   tex_set_address(vid0, tex_address_clamp);
 
   
   //setup second screen, we generate a plane with a 4:3 ratio
-  plane1_mesh = mesh_gen_plane({1.25f,1},{0,0,1},{0,1,0});
+  plane1_mesh = mesh_gen_plane({1.25f*p2s,p2s},{0,0,1},{0,1,0});
   plane1_mat = material_copy_id(default_id_material_unlit);
   vid1 = tex_create(tex_type_image_nomips,tex_format_rgba32);
   tex_set_address(vid1, tex_address_clamp);
   
+  //setup third screen, we generate a plane with a 4:3 ratio
+  plane2_mesh = mesh_gen_plane({1.25f*p3s,p3s},{0,0,1},{0,1,0});
+  plane2_mat = material_copy_id(default_id_material_unlit);
+  vid2 = tex_create(tex_type_image_nomips,tex_format_rgba32);
+  tex_set_address(vid2, tex_address_clamp);
 
   //setup hud
-  hud_mesh = mesh_gen_plane({1.5,1},{0,0,1},{0,1,0});
+  hud_mesh = mesh_gen_plane({1.5f*hud_s,hud_s},{0,0,1},{0,1,0});
   hud_mat = material_copy_id(default_id_material_unlit);
   hud_tex = tex_create(tex_type_image_nomips,tex_format_rgba32);
   tex_set_address(hud_tex, tex_address_clamp);
@@ -182,6 +150,7 @@ int main(int argc, char* argv[]) {
   //setup textures
   material_set_texture(plane_mat,"diffuse",vid0);
   material_set_texture(plane1_mat,"diffuse",vid1);
+  material_set_texture(plane2_mat,"diffuse",vid2);
   material_set_texture(hud_mat,"diffuse",hud_tex);
   material_set_transparency(hud_mat,transparency_blend);
 
@@ -189,12 +158,14 @@ int main(int argc, char* argv[]) {
   std::cout << "Starting threads" << std::endl;
   std::thread t0(&frame_grabber0);
   std::thread t1(&frame_grabber1);
-  std::thread t2(&draw_hud);
-  std::thread t3(&mavlink_thread);
+  std::thread t2(&frame_grabber2);
+  std::thread t3(&draw_hud);
+  std::thread t4(&mavlink_thread);
   t0.detach();
   t1.detach();
   t2.detach();
   t3.detach();
+  t4.detach();
 
 
   std::cout << "Starting main loop" << std::endl;
@@ -207,6 +178,11 @@ int main(int argc, char* argv[]) {
         //video plane 2
         ui_handle_begin("Plane1", plane1_pose, mesh_get_bounds(plane1_mesh), false);
         render_add_mesh(plane1_mesh, plane1_mat, matrix_identity);
+        ui_handle_end();
+        
+        //video plane 3
+        ui_handle_begin("Plane2", plane2_pose, mesh_get_bounds(plane2_mesh), false);
+        render_add_mesh(plane2_mesh, plane2_mat, matrix_identity);
         ui_handle_end();
 
         //setup hud position and orientation. HUD is always 1 unit in front of camera, facing it.

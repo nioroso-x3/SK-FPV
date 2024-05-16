@@ -532,7 +532,7 @@ draw_cairo_hud()
     cr->paint();    // fill image with the color
     cr->restore();
     //set line and color
-    cr->set_source_rgba(0.7, 1.0, 0.7, 0.8);
+    cr->set_source_rgba(0.2, 1.0, 0.2, 0.6);
     cr->set_line_width(5.0);
 
     //begin drawing elements

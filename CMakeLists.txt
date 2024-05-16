@@ -23,6 +23,7 @@ add_executable( SK_FPV
   src/main.cpp
   src/common.cpp
   src/hud.cpp
+  src/mavlink_setup.cpp
 )
 
 # Link to dependencies

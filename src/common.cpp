@@ -58,14 +58,25 @@ std::string fmodes[] ={
 
 mesh_t     plane_mesh;
 material_t plane_mat;
-pose_t     plane_pose = {{0,0.3,-1.5f}, {0,0,0,1}};
+pose_t     plane_pose = {{0,0.6,-1.5f}, {0,0,0,1}};
 tex_t vid0;
 
 //second screen
 mesh_t     plane1_mesh;
 material_t plane1_mat;
-pose_t     plane1_pose = {{0,-1.0f,-1.2f}, {-0.258819,0,0,0.9659258}};
+pose_t     plane1_pose = {{0,-1.1f,-1.2f}, {-0.258819,0,0,0.9659258}};
 tex_t vid1;
+
+//ground stereo cameras
+mesh_t     plane2_mesh;
+material_t plane2_mat;
+pose_t     plane2_pose = {{0,-1.7f,-0.45f}, {-0.7071068,0,0,0.7071068}};
+tex_t vid2;
+
+bool gnd_cam_color = true;
+
+//cubemap for skybox
+tex_t sky;
 
 //HUD
 mesh_t     hud_mesh;
@@ -75,15 +86,16 @@ tex_t      hud_tex;
 
 
 
-//Double buffers for the screens
-cv::Mat buffer0[2];
-cv::Mat buffer1[2];
-cv::Mat buffer2[2];
+//buffers for stabilization
+//currFrame, currGray, prevOrig and prevGray for the wfb_stabilizer script
+cv::Mat buffer0[4];
+cv::Mat buffer1[4];
+cv::Mat buffer2[4];
 
-//Current buffer being used
-char cur_buffer0 = 0;
-char cur_buffer1 = 0;
-char cur_buffer2 = 0;
+float p1s = 2.5f;
+float p2s = 1.0f;
+float p3s = 1.0f;
+float hud_s = 0.55f;
 
 uint64_t cnt = 0;
 
@@ -122,4 +134,9 @@ Telemetry::RcStatus vh_rc;
 
 //flight mode
 std::string vh_fmode;
+
+int8_t wfb_rssi = 0;
+uint16_t wfb_errors = 0;
+uint16_t wfb_fec_fixed = 0;
+int8_t wfb_flags = 0;
 

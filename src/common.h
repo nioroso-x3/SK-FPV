@@ -38,6 +38,15 @@ extern material_t plane1_mat;
 extern pose_t     plane1_pose;
 extern tex_t vid1;
 
+//ground stereo cameras
+extern mesh_t     plane2_mesh;
+extern material_t plane2_mat;
+extern pose_t     plane2_pose;
+extern tex_t vid2;
+extern bool gnd_cam_color;
+//cubemap for skybox
+extern tex_t sky;
+
 //HUD
 extern mesh_t     hud_mesh;
 extern material_t hud_mat;
@@ -45,17 +54,19 @@ extern pose_t     hud_pose;
 extern tex_t      hud_tex;
 
 
+extern cv::Mat buffer0[4];
+extern cv::Mat buffer1[4];
+extern cv::Mat buffer2[4];
 
-//Double buffers for the screens
-extern cv::Mat buffer0[2];
-extern cv::Mat buffer1[2];
-extern cv::Mat buffer2[2];
 
-//Current buffer being used
-extern char cur_buffer0;
-extern char cur_buffer1;
-extern char cur_buffer2;
+//video and hud scales
+extern float p1s;
+extern float p2s;
+extern float p3s;
+extern float hud_s;
 
+
+//renderer frame counter
 extern uint64_t cnt;
 
 //vehicle position
@@ -91,5 +102,12 @@ extern Telemetry::RcStatus vh_rc;
 
 //flight mode
 extern std::string vh_fmode;
+
+//wfb mavlink stream statistics
+extern int8_t wfb_rssi; //WFB rssi
+extern uint16_t wfb_errors;
+extern uint16_t wfb_fec_fixed;
+extern int8_t wfb_flags;
+
 
 #endif

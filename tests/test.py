@@ -1,7 +1,7 @@
 import cairo
 import math
-heading = 0
-def draw_heading(x, y, step_range, bottom):
+
+def draw_heading(x, y, step_range, value, bottom):
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 400, 400)
     ctx = cairo.Context(surface)
 
@@ -10,9 +10,6 @@ def draw_heading(x, y, step_range, bottom):
     mf = 1
     if bottom:
         mf = -1
-
-    # Value indicator
-    value = math.degrees(heading)
 
     font_size = 20
     ctx.set_font_size(font_size)
@@ -104,5 +101,5 @@ def draw_heading(x, y, step_range, bottom):
 
     surface.write_to_png("heading.png")
 
-draw_heading(200, 200, 20, False)
+draw_heading(200, 200, 20, 100, False)
 
