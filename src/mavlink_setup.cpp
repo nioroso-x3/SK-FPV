@@ -71,44 +71,48 @@ void start_mavlink_thread(){
     if ((0 <= heartbeat.custom_mode) && (heartbeat.custom_mode < 25)) vh_fmode = fmodes[heartbeat.custom_mode];
     else vh_fmode = "UNKNOWN";
   });
-  while(true){
-    //wait for wfb system id to start sending data
-    //
-    auto compids = system.value().component_ids();
-    for (int i = 0; i < compids.size(); ++i){
-      std::cout << "comp ids: " << int(compids[i]) << std::endl;
+  //debugging packets from the source
+ /*
+  mavsdk.intercept_incoming_messages_async([](mavlink_message_t &msg) -> bool{
+    if (msg.compid == 68){
+    
+      std::cout << int(msg.msgid) << std::endl;
+      std::cout << int(msg.sysid) << std::endl;
     }
-    if (!found_wfb){
-      auto systems = mavsdk.systems();
-      std::cout << "num systems: " << systems.size() << std::endl;
-      for (int i = 0; i < systems.size(); ++i){
-        std::cout << "sys id: " << systems[i]->get_system_id() << std::endl;
-        if (systems[i]->get_system_id() == 3)
-          std::cout << "mavlink system found" << std::endl;
-          //found the wfb link system
-          auto wfbpass = mavsdk::MavlinkPassthrough{systems[i]};
-          //mavlink stream stats
-          wfbpass.subscribe_message(MAVLINK_MSG_ID_RADIO_STATUS,[](const mavlink_message_t &msg){
-            std::cout << msg.sysid << std::endl;
-            if ((msg.sysid == 3) || (msg.compid == 68)) {
-              wfb_rssi = (int8_t)mavlink_msg_radio_status_get_rssi(&msg);
-              wfb_errors = mavlink_msg_radio_status_get_rxerrors(&msg);
-              wfb_fec_fixed = mavlink_msg_radio_status_get_fixed(&msg);
-              wfb_flags = mavlink_msg_radio_status_get_remnoise(&msg);
-            }
-            std::cout << wfb_rssi << std::endl;
-            std::cout << wfb_errors << std::endl;
-            std::cout << wfb_fec_fixed << std::endl;
-            std::cout << wfb_flags << std::endl;
-          });
-        found_wfb = true;
+    return true;
+
+  });*/
+  //wait for the wfb radio system to appear 
+  auto systems = mavsdk.systems();
+  int radio_idx = -1;
+  while(radio_idx == -1){
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    systems = mavsdk.systems();
+    for (int i = 0; i < systems.size(); ++i){
+      if (systems[i]->get_system_id() == WFB_RADIO_SYSTEM_ID){
+        radio_idx = i;
+        break;
       }
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
   }
+  
+  auto ps = mavsdk::MavlinkPassthrough{systems[radio_idx]};
+  ps.subscribe_message(MAVLINK_MSG_ID_RADIO_STATUS,[](const mavlink_message_t &msg){
+    if (msg.compid == MAV_COMP_ID_TELEMETRY_RADIO) {
+      wfb_rssi = (int8_t)mavlink_msg_radio_status_get_rssi(&msg);
+      wfb_errors = mavlink_msg_radio_status_get_rxerrors(&msg);
+      wfb_fec_fixed = mavlink_msg_radio_status_get_fixed(&msg);
+      wfb_flags = mavlink_msg_radio_status_get_remnoise(&msg);
+    }
+  });
+ 
 
-
-
-
+  while(true){
+/*  std::cout << int(wfb_rssi) << std::endl;
+    std::cout << int(wfb_errors) << std::endl;
+    std::cout << int(wfb_fec_fixed) << std::endl;
+    std::cout << int(wfb_flags) << std::endl;*/
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+  }
 }
 

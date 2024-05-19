@@ -21,7 +21,7 @@ Linux users will need to install some pre-requisites for this template to compil
 
 * OpenCV with gstreamer, Ubuntu 22.04 has it enabled by default
 
-* MAVSDK https://github.com/mavlink/MAVSDK 
+* MAVSDK https://github.com/mavlink/MAVSDK. You will have to comment out the if block in mavsdk_impl.cpp that excludes telemetry radio data. 
 
 * libcairomm-1.0 for the HUD
 

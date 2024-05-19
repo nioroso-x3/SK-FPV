@@ -208,6 +208,6 @@ int main(int argc, char* argv[]) {
   t1.join();
   t2.join();
   t3.join();
-  //cap2.release();
+  t4.join();
   return 0;
 }
