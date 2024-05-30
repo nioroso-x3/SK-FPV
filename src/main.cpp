@@ -1,6 +1,7 @@
 #include "common.h"
 #include "hud.h"
 #include "mavlink_setup.h"
+#include "stabilization.h"
 
 using namespace sk;
 using namespace mavsdk;
@@ -10,7 +11,7 @@ void frame_grabber0()
 {
   std::cerr << "Waiting for video 1" << std::endl;
   cv::VideoCapture cap;
-  bool cap_open = cap.open("udpsrc port=5600 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H264 ! queue ! rtph264depay ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
+  bool cap_open = cap.open("udpsrc port=5600 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H264 ! queue ! rtph264depay ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=50 drop=false sync=false",cv::CAP_GSTREAMER);
   
   if(!cap.isOpened()){
       std::cerr << "Error opening video 1" << std::endl;
@@ -18,9 +19,18 @@ void frame_grabber0()
 
   std::cerr << "Starting video 1" << std::endl;
   cv::Mat buf;
+  cv::Mat st_buf;
+  bool run_stab = true;
+  stabilizer stab;
   while(cap.isOpened()){
     cap.read(buf);
-    tex_set_colors(vid0,buf.cols,buf.rows,(void*)buf.datastart);
+    if (run_stab){
+      stab.stabilize(buf,st_buf);
+      tex_set_colors(vid0,st_buf.cols,st_buf.rows,(void*)st_buf.datastart);
+    }
+    else{
+      tex_set_colors(vid0,buf.cols,buf.rows,(void*)buf.datastart);
+    }
   }
   cap.release();
   //something crashed the decoder
