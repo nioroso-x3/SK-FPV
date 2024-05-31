@@ -3,13 +3,13 @@
 stabilizer::stabilizer(){
 
   downSample = 1.0f;
-  zoomFactor = 0.9f;
+  zoomFactor = 1.0f;
   processVar = 0.03f;
   measVar = 2.0f;
   roiDiv = 3.0f;
-  Q = cv::Mat(1, 3, CV_64F, processVar);
-  R = cv::Mat(1, 3, CV_64F, measVar);
-  
+  Q = cv::Mat(1, 3, CV_32F, processVar);
+  R = cv::Mat(1, 3, CV_32F, measVar);
+  m = cv::Mat(2,3,CV_32F); 
   count = 0;
   x = 0;
   y = 0;
@@ -60,11 +60,6 @@ stabilizer::stabilize(cv::Mat &buf,cv::Mat &st_buf){
   int maxLevel = 3;
   cv::TermCriteria criteria(cv::TermCriteria::EPS | cv::TermCriteria::COUNT, 10, 0.03);
 
-  if(count == 0)  cv::imwrite("lastgrey_0.png",prevGray);
-  if(count == 1)  cv::imwrite("lastgrey_1.png",prevGray);
-  if(count == 2)  cv::imwrite("lastgrey_2.png",prevGray);
-
-
   std::vector<cv::Point2f> prevPts, currPts;
   std::vector<cv::Point2f> goodPrevPts, goodCurrPts;
   std::vector<uint8_t> status;
@@ -102,30 +97,30 @@ stabilizer::stabilize(cv::Mat &buf,cv::Mat &st_buf){
 
   cv::Mat Z = cv::Mat({1,3},{x,y,a});
   if (count == 0) {
-    X_estimate = cv::Mat::zeros(1, 3, CV_64F);
-    P_estimate = cv::Mat::ones(1, 3, CV_64F);
+    X_estimate = cv::Mat::zeros(1, 3, CV_32F);
+    P_estimate = cv::Mat::ones(1, 3, CV_32F);
   } else {
     cv::Mat X_predict = X_estimate.clone();
     cv::Mat P_predict = P_estimate + Q;
     cv::Mat K = P_predict / (P_predict + R);
     X_estimate = X_predict + K.mul(Z - X_predict);
-    P_estimate = (cv::Mat::ones(1, 3, CV_64F) - K).mul(P_predict);
+    P_estimate = (cv::Mat::ones(1, 3, CV_32F) - K).mul(P_predict);
     
   }
 
-  double diff_x = X_estimate.at<double>(0, 0) - x;
-  double diff_y = X_estimate.at<double>(0, 1) - y;
-  double diff_a = X_estimate.at<double>(0, 2) - a;
+  float diff_x = X_estimate.at<float>(0, 0) - x;
+  float diff_y = X_estimate.at<float>(0, 1) - y;
+  float diff_a = X_estimate.at<float>(0, 2) - a;
   dx += diff_x;
   dy += diff_y;
   da += diff_a;
-  m = cv::Mat::zeros(2,3,CV_64F);
-  m.at<double>(0, 0) = cos(da);
-  m.at<double>(0, 1) = -sin(da);
-  m.at<double>(1, 0) = sin(da);
-  m.at<double>(1, 1) = cos(da);
-  m.at<double>(0, 2) = dx;
-  m.at<double>(1, 2) = dy;
+  m = cv::Mat::zeros(2,3,CV_32F);
+  m.at<float>(0, 0) = cos(da);
+  m.at<float>(0, 1) = -sin(da);
+  m.at<float>(1, 0) = sin(da);
+  m.at<float>(1, 1) = cos(da);
+  m.at<float>(0, 2) = dx;
+  m.at<float>(1, 2) = dy;
   cv::Mat fS, f_stabilized;
   cv::warpAffine(prevOrig, fS, m, cv::Size(res_w_orig, res_h_orig));
   cv::Size s = fS.size();
@@ -136,8 +131,11 @@ stabilizer::stabilize(cv::Mat &buf,cv::Mat &st_buf){
   prevFrame = currFrame.clone();
   prevGray = currGray.clone();
   lastRigidTransform = m.clone();
-
-  st_buf = f_stabilized.clone();
+  int fwt = f_stabilized.cols * 0.1;
+  int fht = f_stabilized.rows * 0.1;
+  int fw = f_stabilized.cols * 0.8;
+  int fh = f_stabilized.rows * 0.8;
+  st_buf = f_stabilized(cv::Rect(fwt,fht,fw,fh)).clone();
   count += 1;
 }
 

@@ -11,7 +11,7 @@ void frame_grabber0()
 {
   std::cerr << "Waiting for video 1" << std::endl;
   cv::VideoCapture cap;
-  bool cap_open = cap.open("udpsrc port=5600 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H264 ! queue ! rtph264depay ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=50 drop=false sync=false",cv::CAP_GSTREAMER);
+  bool cap_open = cap.open("udpsrc port=5600 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H264 ! queue ! rtph264depay ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
   
   if(!cap.isOpened()){
       std::cerr << "Error opening video 1" << std::endl;

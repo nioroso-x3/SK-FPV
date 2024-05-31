@@ -8,14 +8,14 @@ class stabilizer
     float downSample;
     float zoomFactor;
     float processVar;
-    double measVar;
-    double roiDiv;
+    float measVar;
+    float roiDiv;
     cv::Mat Q;
     cv::Mat R;
 
     int count;
-    double x, y, a;
-    double dx, dy, da;
+    float x, y, a;
+    float dx, dy, da;
     cv::Mat orig;
     cv::Mat prevOrig;
     cv::Mat currFrame;
