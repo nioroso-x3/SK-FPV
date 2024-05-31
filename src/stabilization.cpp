@@ -7,9 +7,9 @@ stabilizer::stabilizer(){
   processVar = 0.03f;
   measVar = 2.0f;
   roiDiv = 3.0f;
-  Q = cv::Mat(1, 3, CV_32F, processVar);
-  R = cv::Mat(1, 3, CV_32F, measVar);
-  m = cv::Mat(2,3,CV_32F); 
+  Q = cv::Mat(1, 3, CV_64F, processVar);
+  R = cv::Mat(1, 3, CV_64F, measVar);
+  m = cv::Mat(2,3,CV_64F); 
   count = 0;
   x = 0;
   y = 0;
@@ -28,12 +28,12 @@ stabilizer::stabilize(cv::Mat &buf,cv::Mat &st_buf){
 
   int res_w_orig = currFrame.cols;
   int res_h_orig = currFrame.rows;
-  int res_w = (float(res_w_orig) * downSample);
-  int res_h = (float(res_h_orig) * downSample);
-  int top_left_x = float(res_w)/roiDiv;
-  int top_left_y = float(res_h)/roiDiv;
-  int roi_w = int(res_w - (float(res_w)/roiDiv)) - top_left_x;
-  int roi_h = int(res_h - (float(res_h)/roiDiv)) - top_left_y;
+  int res_w = (double(res_w_orig) * downSample);
+  int res_h = (double(res_h_orig) * downSample);
+  int top_left_x = double(res_w)/roiDiv;
+  int top_left_y = double(res_h)/roiDiv;
+  int roi_w = int(res_w - (double(res_w)/roiDiv)) - top_left_x;
+  int roi_h = int(res_h - (double(res_h)/roiDiv)) - top_left_y;
 
   cv::Rect roi = cv::Rect(top_left_x,top_left_y,roi_w,roi_h);
 
@@ -97,30 +97,29 @@ stabilizer::stabilize(cv::Mat &buf,cv::Mat &st_buf){
 
   cv::Mat Z = cv::Mat({1,3},{x,y,a});
   if (count == 0) {
-    X_estimate = cv::Mat::zeros(1, 3, CV_32F);
-    P_estimate = cv::Mat::ones(1, 3, CV_32F);
+    X_estimate = cv::Mat::zeros(1, 3, CV_64F);
+    P_estimate = cv::Mat::ones(1, 3, CV_64F);
   } else {
     cv::Mat X_predict = X_estimate.clone();
     cv::Mat P_predict = P_estimate + Q;
     cv::Mat K = P_predict / (P_predict + R);
     X_estimate = X_predict + K.mul(Z - X_predict);
-    P_estimate = (cv::Mat::ones(1, 3, CV_32F) - K).mul(P_predict);
+    P_estimate = (cv::Mat::ones(1, 3, CV_64F) - K).mul(P_predict);
     
   }
-
-  float diff_x = X_estimate.at<float>(0, 0) - x;
-  float diff_y = X_estimate.at<float>(0, 1) - y;
-  float diff_a = X_estimate.at<float>(0, 2) - a;
+  double diff_x = X_estimate.at<double>(0, 0) - x;
+  double diff_y = X_estimate.at<double>(0, 1) - y;
+  double diff_a = X_estimate.at<double>(0, 2) - a;
   dx += diff_x;
   dy += diff_y;
   da += diff_a;
-  m = cv::Mat::zeros(2,3,CV_32F);
-  m.at<float>(0, 0) = cos(da);
-  m.at<float>(0, 1) = -sin(da);
-  m.at<float>(1, 0) = sin(da);
-  m.at<float>(1, 1) = cos(da);
-  m.at<float>(0, 2) = dx;
-  m.at<float>(1, 2) = dy;
+  m = cv::Mat::zeros(2,3,CV_64F);
+  m.at<double>(0, 0) = cos(da);
+  m.at<double>(0, 1) = -sin(da);
+  m.at<double>(1, 0) = sin(da);
+  m.at<double>(1, 1) = cos(da);
+  m.at<double>(0, 2) = dx;
+  m.at<double>(1, 2) = dy;
   cv::Mat fS, f_stabilized;
   cv::warpAffine(prevOrig, fS, m, cv::Size(res_w_orig, res_h_orig));
   cv::Size s = fS.size();

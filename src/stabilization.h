@@ -5,17 +5,17 @@
 class stabilizer
 {
   private:
-    float downSample;
-    float zoomFactor;
-    float processVar;
-    float measVar;
-    float roiDiv;
+    double downSample;
+    double zoomFactor;
+    double processVar;
+    double measVar;
+    double roiDiv;
     cv::Mat Q;
     cv::Mat R;
 
     int count;
-    float x, y, a;
-    float dx, dy, da;
+    double x, y, a;
+    double dx, dy, da;
     cv::Mat orig;
     cv::Mat prevOrig;
     cv::Mat currFrame;
