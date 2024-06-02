@@ -58,7 +58,7 @@ std::string fmodes[] ={
 
 mesh_t     plane_mesh;
 material_t plane_mat;
-pose_t     plane_pose = {{0,0.6,-1.5f}, {0,0,0,1}};
+pose_t     plane_pose = {{0,0.2,-2.0f}, {0,0,0,1}};
 tex_t vid0;
 
 //second screen
@@ -70,7 +70,8 @@ tex_t vid1;
 //ground stereo cameras
 mesh_t     plane2_mesh;
 material_t plane2_mat;
-pose_t     plane2_pose = {{0,-1.7f,-0.45f}, {-0.7071068,0,0,0.7071068}};
+pose_t     plane2_pose = {{1.5f,-1.1f,-1.1f}, {-0.2521877,-0.3782815,0,0.8906764}};
+//pose_t     plane2_pose = {{0,-1.7f,-0.45f}, {-0.7071068,0,0,0.7071068}};
 tex_t vid2;
 
 bool gnd_cam_color = true;
@@ -92,10 +93,10 @@ cv::Mat buffer0[4];
 cv::Mat buffer1[4];
 cv::Mat buffer2[4];
 
-float p1s = 2.5f;
+float p1s = 2.2f;
 float p2s = 1.0f;
 float p3s = 1.0f;
-float hud_s = 0.55f;
+float hud_s = 0.45f;
 
 uint64_t cnt = 0;
 
@@ -133,7 +134,7 @@ Telemetry::StatusText vh_st_text;
 Telemetry::RcStatus vh_rc;
 
 //flight mode
-std::string vh_fmode;
+std::string vh_fmode = "UNKNOWN";
 
 int8_t wfb_rssi = 0;
 uint16_t wfb_errors = 0;

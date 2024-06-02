@@ -33,7 +33,7 @@ void drawHeading(Cairo::RefPtr<Cairo::Context> cr,
 
     // Value indicator
 
-    float font_size = 20;
+    float font_size = 28.0f;
     cr->set_font_size(font_size);
     int text = round(value);
 
@@ -61,7 +61,7 @@ void drawHeading(Cairo::RefPtr<Cairo::Context> cr,
     cr->show_text(std::to_string(text));
 
     // Scale
-    font_size = 16;
+    font_size = 18;
     cr->set_font_size(font_size);
 
     float text_border = 2;
@@ -151,7 +151,7 @@ void drawVerticalScale(Cairo::RefPtr<Cairo::Context> cr,
     }
     float exampleValue = 9999;
     // value indicator
-    float fontSize = 20.0;
+    float fontSize = 28.0;
     cr->set_font_size(fontSize);
 
     float textSideBorder = 5.0;
@@ -170,7 +170,7 @@ void drawVerticalScale(Cairo::RefPtr<Cairo::Context> cr,
     cr->line_to(0, height / 2);
     cr->close_path();
     cr->stroke();
-    cr->move_to(right ? -textSideBorder - textWidth +35 : textSideBorder + textWidth -90, 8);
+    cr->move_to(right ? -textSideBorder - textWidth +35 : textSideBorder + textWidth -110, 8);
     
     std::string str_v = deci(value,1);
     if (str_v.size() < 4) str_v.insert(str_v.begin(), 4 -str_v.size(), ' ');
@@ -178,7 +178,7 @@ void drawVerticalScale(Cairo::RefPtr<Cairo::Context> cr,
     cr->show_text(str_v);
 
     // scale |----I----|----I----|----I----|
-    fontSize = 16.0;
+    fontSize = 18.0;
     cr->set_font_size(fontSize);
 
     float textBorder = 3.0;
@@ -378,7 +378,7 @@ void drawHorizonLadder(const Cairo::RefPtr<Cairo::Context>& cr,
 
 void drawThrottle(const Cairo::RefPtr<Cairo::Context>& cr, float x, float y, float throttle) {
     cr->save();
-    cr->set_font_size(25);
+    cr->set_font_size(27);
 
     float border = 8;
     float indexLength = 6;
@@ -418,7 +418,7 @@ void drawStatusMsg(const Cairo::RefPtr<Cairo::Context>& cr, float x, float y, st
     status_counter--;
     cr->set_font_size(40);
     cr->move_to(x,y);
-    cr->show_text("COM->");
+    cr->show_text("COM: ");
     cr->move_to(x+110,y);
     cr->show_text(msg);
   }
@@ -455,8 +455,9 @@ void drawBatteryStatus(const Cairo::RefPtr<Cairo::Context>& cr, float x, float y
   cr->restore();
 }
 
-void drawSimpleLabel(const Cairo::RefPtr<Cairo::Context>& cr, float x, float y, std::string label, double value, int precision){
+void drawSimpleLabel(const Cairo::RefPtr<Cairo::Context>& cr, float x, float y, std::string label, double value, int precision,float s){
   cr->save();
+  cr->set_font_size(s);
   Cairo::TextExtents t;
   cr->get_text_extents(label,t);
   cr->translate(x,y);
@@ -523,7 +524,7 @@ draw_cairo_hud()
 
     //set font seize
     cr->select_font_face("@cairo:monospace",Cairo::FONT_SLANT_NORMAL,Cairo::FONT_WEIGHT_BOLD);
-    cr->set_font_size(20.0);
+    cr->set_font_size(24.0);
     
     //clear canvas
     cr->save();
@@ -532,20 +533,19 @@ draw_cairo_hud()
     cr->paint();    // fill image with the color
     cr->restore();
     //set line and color
-    cr->set_source_rgba(0.2, 1.0, 0.2, 0.6);
-    cr->set_line_width(5.0);
+    cr->set_source_rgba(0.1, 1.0, 0.1, 0.97);
+    cr->set_line_width(4.5);
 
     //begin drawing elements
     //drawFlightPath(cr,HUD_w/2.0,HUD_h/2.0); need to figure out how to calculate the projection to the hud
     drawAircraftSymbol(cr,HUD_w/2.0,HUD_h/2.0);
     drawHeading(cr,HUD_w/2.0,5,60,head,false); 
     drawVerticalScale(cr,4,HUD_h/2.0,as,40,false);
-    drawSimpleLabel(cr,0,(HUD_h/2.0)+40,"GS",gs,1);
+    drawSimpleLabel(cr,0,(HUD_h/2.0)+50,"GS",gs,1,30.0f);
     drawVerticalScale(cr,HUD_w-4,HUD_h/2.0,alt_r,40,true);
-    drawSimpleLabel(cr,(HUD_w/24)*1,(HUD_h/2.0)-20,"W",v0*a0,1);
-    drawSimpleLabel(cr,(HUD_w/24)*22,(HUD_h/32)*1,"SATS",n_sats,0);
-    drawThrottle(cr,0,HUD_h/2.0 - 20,thr);
-    drawBatteryStatus(cr,HUD_w/4,(HUD_h/12)*11,v0,a0);
+    drawSimpleLabel(cr,(HUD_w/32)*27,(HUD_h/32)*11,"SATS",n_sats,0,30.0f);
+    drawThrottle(cr,(HUD_w/24)*4,(HUD_h/12)*12,thr);
+    drawBatteryStatus(cr,(HUD_w/4),(HUD_h/12)*11,v0,a0);
     drawLabel(cr,0,(HUD_h/32)*24,mode,32);
     drawStatusMsg(cr,(HUD_w/8),(HUD_h/10)*8,lastMsg);
     

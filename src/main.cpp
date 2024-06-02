@@ -48,10 +48,18 @@ void frame_grabber1()
 
   std::cerr << "Starting video 2" << std::endl;
   cv::Mat buf;
+  cv::Mat st_buf;
+  bool run_stab = true;
+  stabilizer stab;
   while(cap.isOpened()){
     cap.read(buf);
-    tex_set_colors(vid1,buf.cols,buf.rows,(void*)buf.datastart);
-   
+    if (run_stab){
+      stab.stabilize(buf,st_buf);
+      tex_set_colors(vid1,st_buf.cols,st_buf.rows,(void*)st_buf.datastart);  
+    }
+    else{
+        tex_set_colors(vid1,buf.cols,buf.rows,(void*)buf.datastart);
+    }
   }
   cap.release();
 }
