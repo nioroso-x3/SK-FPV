@@ -44,6 +44,26 @@ extern material_t plane2_mat;
 extern pose_t     plane2_pose;
 extern tex_t vid2;
 extern bool gnd_cam_color;
+
+extern mesh_t     plane3_mesh;
+extern material_t plane3_mat;
+extern pose_t     plane3_pose;
+extern tex_t vid3;
+
+//left window
+extern mesh_t     plane4_mesh;
+extern material_t plane4_mat;
+extern pose_t     plane4_pose;
+extern tex_t vid4;
+
+//right window
+extern mesh_t     plane5_mesh;
+extern material_t plane5_mat;
+extern pose_t     plane5_pose;
+extern tex_t vid5;
+
+
+
 //cubemap for skybox
 extern tex_t sky;
 
@@ -63,6 +83,7 @@ extern cv::Mat buffer2[4];
 extern float p1s;
 extern float p2s;
 extern float p3s;
+extern float pWs;
 extern float hud_s;
 
 
