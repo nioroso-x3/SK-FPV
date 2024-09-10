@@ -1,0 +1,22 @@
+{
+  "version": 8,
+  "name": "Satellite Map",
+  "sources": {
+    "satellite": {
+      "type": "raster",
+      "tiles": [
+        "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+      ],
+      "tileSize": 256
+    }
+  },
+  "layers": [
+    {
+      "id": "satellite",
+      "type": "raster",
+      "source": "satellite",
+      "minzoom": 0,
+      "maxzoom": 22
+    }
+  ]
+}

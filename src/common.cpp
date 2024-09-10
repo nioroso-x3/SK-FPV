@@ -93,7 +93,7 @@ tex_t vid4;
 mesh_t     plane5_mesh;
 material_t plane5_mat;
 pose_t     plane5_pose = {{2.2f,0.2f,0.3f}, {0.0,-0.7071608,0.0,0.7071068}};
-tex_t vid5;
+tex_t      vid5;
 
 
 bool gnd_cam_color = true;
@@ -107,6 +107,11 @@ material_t hud_mat;
 pose_t     hud_pose;
 tex_t      hud_tex;
 
+//map screen
+mesh_t     plane6_mesh;
+material_t plane6_mat;
+pose_t     plane6_pose = {{-1.7f,1.0f,-1.99f}, {0,0,0,1}};
+tex_t      vid6;
 
 
 //buffers for stabilization

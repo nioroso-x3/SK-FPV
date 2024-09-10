@@ -1,30 +1,31 @@
 # FPV VR video player using OpenCV+gstreamer and StereoKit
 
-Rough first functional release. My drone has two cameras, so there are two video surfaces.
-
 Compiles and works on Ubuntu 22.04. Tested on Ubuntu 24.04, but it seems OpenCV 4.6 Gstreamer support is broken as VideoCapture objects dont seem to work.
 
-Receives a 16:9 and and two 4:3 RTP h264 streams on ports 5600,5601,5602. You can edit the gstreamer pipelines to change the codecs/ports.
+Receives RTP h265 streams on ports 5600 to 5603. You can edit the gstreamer pipelines in main.cpp to change the codecs/ports.
 
-Listens to mavlink at udp://0.0.0.0:14551, change the corresponding line in mavlink_setup.cpp to another address or a serial port.
+Listens to mavlink at udp://0.0.0.0:14551, you can change the corresponding line in mavlink_setup.cpp to another address or a serial port.
 
-Look at the comments in the code to modify the surface aspect ratio or position.
+Look at the comments in the code to modify the surface aspect ratio or position of a screen. You can also remove them by deleting them from the main loop.
 
+The maps require a "style.json" file to load the map styles, I included a sample terrain.json with free satellite images. Set up your custom style by changing the API key and json url for the mapping object in main.cpp.
 
 
 ## Linux pre-requisites
 
 Linux users will need to install some pre-requisites for this template to compile. 
 
-
 * Monado and your headsets drivers should be working first, for example on my CV1 I also need the OpenHMD libraries.
 
 * OpenCV with gstreamer, Ubuntu 22.04 has it enabled by default
 
-* MAVSDK https://github.com/mavlink/MAVSDK. You will have to comment out the if block in mavsdk_impl.cpp that excludes telemetry radio data. 
+* MAVSDK https://github.com/mavlink/MAVSDK. You will have to comment out the if block in mavsdk_impl.cpp that excludes telemetry radio data for WFB telemetry to work.
 
 * libcairomm-1.0 for the HUD
 
+* maplibre-native https://github.com/maplibre/maplibre-native for the live map. Clone and build it inside this repo following the instructions for linux.
+
+* Some extra libraries for maplibre, cmake should find them all or show an error telling you what to install.
 
 ```shell
 sudo apt-get update
@@ -37,6 +38,8 @@ For those new to CMake, here's a quick example of how to compile and build this 
 
 ```shell
 # From the project root directory
+
+# Download and compile maplibre-native, no need to install it.
 
 # Make a folder to build in
 mkdir build
@@ -53,12 +56,8 @@ make -j 4
 
 ## TODO
 
-Finish MAVLINK HUD
+Finish some missing MAVLINK HUD elements, like WFB telemetry.
 
-Add google maps window.
-
-Add stabilization
-
-Add RC control using the headset controllers / movement
+Add RC control using the headset controllers / movement for the plane and mavlink gimbal.
 
 

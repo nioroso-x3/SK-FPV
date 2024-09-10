@@ -13,7 +13,7 @@
 #include <chrono>
 #include <cmath>
 
-#define HUD_COLOR cv::Scalar(0,255,0,160)
+#define HUD_COLOR cv::Scalar(0,255,0,200)
 #define HUD_COLOR_CLR cv::Scalar(0,0,0,0)
 using namespace mavsdk;
 using namespace sk;
@@ -62,6 +62,11 @@ extern material_t plane5_mat;
 extern pose_t     plane5_pose;
 extern tex_t vid5;
 
+//Map
+extern mesh_t     plane6_mesh;
+extern material_t plane6_mat;
+extern pose_t     plane6_pose;
+extern tex_t vid6;
 
 
 //cubemap for skybox
@@ -96,7 +101,7 @@ extern Telemetry::Position vh_pos;
 
 //vehicle attitude
 //attributes are roll_deg, pitch_deg, and yaw_deg
-// positive is bank right, nose up and rotating right
+// positive is bank clockwise, nose up and yaw right
 extern Telemetry::EulerAngle vh_att;
 
 //vehicle batteries 0 and 1

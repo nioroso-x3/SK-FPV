@@ -2,6 +2,7 @@
 #include "hud.h"
 #include "mavlink_setup.h"
 #include "stabilization.h"
+#include "mapping.h"
 
 using namespace sk;
 using namespace mavsdk;
@@ -20,7 +21,7 @@ void frame_grabber0()
   std::cerr << "Starting video 1" << std::endl;
   cv::Mat buf;
   cv::Mat st_buf;
-  bool run_stab = true;
+  bool run_stab = false;
   stabilizer stab;
   while(cap.isOpened()){
     cap.read(buf);
@@ -40,7 +41,7 @@ void frame_grabber1()
 {
   std::cerr << "Waiting for 45deg camera" << std::endl;
   cv::VideoCapture cap;
-  bool cap_open = cap.open("udpsrc port=5601 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtph265depay ! avdec_h265 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
+  bool cap_open = cap.open("udpsrc port=5601 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rptjitterbuffer latency=20 do-lost=1 ! rtph265depay ! avdec_h265 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=2 drop=true sync=false",cv::CAP_GSTREAMER);
   
   if(!cap.isOpened()){
       std::cerr << "Error opening video 2" << std::endl;
@@ -49,7 +50,7 @@ void frame_grabber1()
   std::cerr << "Starting video 2" << std::endl;
   cv::Mat buf;
   cv::Mat st_buf;
-  bool run_stab = true;
+  bool run_stab = false;
   stabilizer stab;
   while(cap.isOpened()){
     cap.read(buf);
@@ -68,7 +69,7 @@ void frame_grabber2()
 {
   std::cerr << "Waiting for ground cameras" << std::endl;
   cv::VideoCapture cap;
-  bool cap_open = cap.open("udpsrc port=5602 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H264 ! queue ! rtph264depay ! avdec_h264 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
+  bool cap_open = cap.open("udpsrc port=5602 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtpjitterbuffer latency=20 do-lost=1 ! rtph265depay ! avdec_h265 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=2 drop=true sync=false",cv::CAP_GSTREAMER);
   
   if(!cap.isOpened()){
       std::cerr << "Error opening video 3" << std::endl;
@@ -106,7 +107,7 @@ void frame_grabber3()
 {
   std::cerr << "Waiting for side windows" << std::endl;
   cv::VideoCapture cap;
-  bool cap_open = cap.open("udpsrc port=5603 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtph265depay ! avdec_h265 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
+  bool cap_open = cap.open("udpsrc port=5603 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtpjitterbuffer latency=20 do-lost=1 ! rtph265depay ! avdec_h265 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
   
   if(!cap.isOpened()){
       std::cerr << "Error opening video 4" << std::endl;
@@ -159,6 +160,32 @@ void draw_hud()
   std::cerr << "Starting HUD thread" << std::endl;
   draw_cairo_hud();
   std::cerr << "HUD thread exited" << std::endl;
+}
+
+
+void map_thread(){
+   std::cerr << "Starting Map thread" << std::endl;
+   cv::Mat cur_loc;
+   //set to your API key and style JSON
+   maplibre maps(std::string(""),std::string("file://./style.json"));
+   while(true){
+     if (maps.get_map(&cur_loc,vh_pos.latitude_deg,vh_pos.longitude_deg,vh_att.yaw_deg,17) == 0){
+       cv::Point p1( 255, 240);
+       cv::Point p2( 240, 275);
+       cv::Point p3( 270, 275);
+       cv::Scalar color(128,255,128,200);
+       cv::line(cur_loc,p1,p2,color,2,cv::LINE_AA);
+       cv::line(cur_loc,p1,p3,color,2,cv::LINE_AA);
+       cv::line(cur_loc,p2,p3,color,2,cv::LINE_AA);
+       tex_set_colors(vid6,cur_loc.cols,cur_loc.rows,(void*)cur_loc.datastart);
+     
+     }
+     std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+   }
+
+   std::cerr << "Map thread exited" << std::endl;
+
 }
 
 
@@ -217,6 +244,11 @@ int main(int argc, char* argv[]) {
   hud_tex = tex_create(tex_type_image_nomips,tex_format_rgba32);
   tex_set_address(hud_tex, tex_address_clamp);
 
+  //setup map screen, 1:1 ratio
+  plane6_mesh = mesh_gen_plane({0.75,0.75},{0,0,1},{0,1,0});
+  plane6_mat = material_copy_id(default_id_material_unlit);
+  vid6 = tex_create(tex_type_image_nomips,tex_format_rgba32);
+  tex_set_address(vid6, tex_address_clamp);
 
   //hide hands, we are not using them right now.
   for (size_t h = 0; h < handed_max; h++) {
@@ -231,7 +263,8 @@ int main(int argc, char* argv[]) {
   material_set_texture(plane4_mat,"diffuse",vid4);
   material_set_texture(plane5_mat,"diffuse",vid5);
   material_set_texture(hud_mat,"diffuse",hud_tex);
-  material_set_transparency(hud_mat,transparency_add);
+  material_set_transparency(hud_mat,transparency_blend);
+  material_set_texture(plane6_mat,"diffuse",vid6);
 
 
   std::cout << "Starting threads" << std::endl;
@@ -241,12 +274,14 @@ int main(int argc, char* argv[]) {
   std::thread t3(&frame_grabber3);
   std::thread t4(&draw_hud);
   std::thread t5(&mavlink_thread);
+  std::thread t6(&map_thread);
   t0.detach();
   t1.detach();
   t2.detach();
   t3.detach();
   t4.detach();
   t5.detach();
+  t6.detach();
 
   std::cout << "Starting main loop" << std::endl;
   sk_run([]() {
@@ -287,7 +322,12 @@ int main(int argc, char* argv[]) {
         ui_handle_begin("HUD", hud_pose, mesh_get_bounds(hud_mesh), false);
         render_add_mesh(hud_mesh, hud_mat, matrix_trs(at,ori,vec3_one));
         ui_handle_end();
-         
+
+        //map window
+        ui_handle_begin("Plane6", plane6_pose, mesh_get_bounds(plane6_mesh), false);
+        render_add_mesh(plane6_mesh, plane6_mat, matrix_identity);
+        ui_handle_end();
+        
         //print some debug stuff if needed
         if(cnt % 100 == 0){
             //std::cout << hud_pose.orientation.x << " " << hud_pose.orientation.y << " " << hud_pose.orientation.z << " " << hud_pose.orientation.w << std::endl << std::endl;
@@ -304,5 +344,7 @@ int main(int argc, char* argv[]) {
   t2.join();
   t3.join();
   t4.join();
+  t5.join();
+  t6.join();
   return 0;
 }
