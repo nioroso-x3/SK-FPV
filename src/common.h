@@ -67,7 +67,7 @@ extern mesh_t     plane6_mesh;
 extern material_t plane6_mat;
 extern pose_t     plane6_pose;
 extern tex_t vid6;
-
+extern double map_zoom;
 
 //cubemap for skybox
 extern tex_t sky;
@@ -78,18 +78,16 @@ extern material_t hud_mat;
 extern pose_t     hud_pose;
 extern tex_t      hud_tex;
 
-
-extern cv::Mat buffer0[4];
-extern cv::Mat buffer1[4];
-extern cv::Mat buffer2[4];
-
-
 //video and hud scales
 extern float p1s;
 extern float p2s;
 extern float p3s;
 extern float pWs;
 extern float hud_s;
+
+
+extern bool run_stab;
+extern bool gnd_cam;
 
 
 //renderer frame counter
@@ -129,11 +127,23 @@ extern Telemetry::RcStatus vh_rc;
 //flight mode
 extern std::string vh_fmode;
 
+//home position
+extern Telemetry::Position home_pos;
+
+
 //wfb mavlink stream statistics
 extern int8_t wfb_rssi; //WFB rssi
 extern uint16_t wfb_errors;
 extern uint16_t wfb_fec_fixed;
 extern int8_t wfb_flags;
 
+//distance sensors, for now only the landing sensor is supported
+extern Telemetry::DistanceSensor vh_rngfnd;
+
+//gps time
+extern uint64_t gps_time;
+
+float get_heading(float,float,float,float);
+float get_distance(float,float,float,float);
 
 #endif

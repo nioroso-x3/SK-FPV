@@ -7,12 +7,21 @@
 using namespace sk;
 using namespace mavsdk;
 
-//should make this only one function but whatever
+//video output
+cv::VideoWriter output;
+//callback needed for the video rendering function
+void scr_callback(color32* buffer, int w, int h, void *ctx){
+    cv::Mat out(w, h, CV_8UC4, buffer);
+    cv::cvtColor(out,out,cv::COLOR_RGBA2BGR);
+    if (output.isOpened())
+    output << out;
+}
+
 void frame_grabber0()
 {
   std::cerr << "Waiting for FPV camera" << std::endl;
   cv::VideoCapture cap;
-  bool cap_open = cap.open("udpsrc port=5600 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtph265depay ! avdec_h265 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
+  bool cap_open = cap.open("udpsrc port=5600 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtpjitterbuffer latency=10 do-lost=true ! rtph265depay ! avdec_h265 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
   
   if(!cap.isOpened()){
       std::cerr << "Error opening video 1" << std::endl;
@@ -20,13 +29,13 @@ void frame_grabber0()
 
   std::cerr << "Starting video 1" << std::endl;
   cv::Mat buf;
-  cv::Mat st_buf;
-  bool run_stab = false;
   stabilizer stab;
+  float rx,ry,a;
   while(cap.isOpened()){
     cap.read(buf);
     if (run_stab){
-      stab.stabilize(buf,st_buf);
+      stab.stabilize(buf,&rx,&ry,&a);
+      cv::Mat st_buf = stab.getStabFrame();
       tex_set_colors(vid0,st_buf.cols,st_buf.rows,(void*)st_buf.datastart);
     }
     else{
@@ -41,7 +50,7 @@ void frame_grabber1()
 {
   std::cerr << "Waiting for 45deg camera" << std::endl;
   cv::VideoCapture cap;
-  bool cap_open = cap.open("udpsrc port=5601 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rptjitterbuffer latency=20 do-lost=1 ! rtph265depay ! avdec_h265 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=2 drop=true sync=false",cv::CAP_GSTREAMER);
+  bool cap_open = cap.open("udpsrc port=5601 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rptjitterbuffer latency=10 do-lost=1 ! rtph265depay ! avdec_h265 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=2 drop=true sync=false",cv::CAP_GSTREAMER);
   
   if(!cap.isOpened()){
       std::cerr << "Error opening video 2" << std::endl;
@@ -50,12 +59,13 @@ void frame_grabber1()
   std::cerr << "Starting video 2" << std::endl;
   cv::Mat buf;
   cv::Mat st_buf;
-  bool run_stab = false;
   stabilizer stab;
+  float rx,ry,a;
   while(cap.isOpened()){
     cap.read(buf);
     if (run_stab){
-      stab.stabilize(buf,st_buf);
+      stab.stabilize(buf,&rx,&ry,&a);
+      cv::Mat st_buf = stab.getStabFrame();
       tex_set_colors(vid1,st_buf.cols,st_buf.rows,(void*)st_buf.datastart);  
     }
     else{
@@ -69,7 +79,7 @@ void frame_grabber2()
 {
   std::cerr << "Waiting for ground cameras" << std::endl;
   cv::VideoCapture cap;
-  bool cap_open = cap.open("udpsrc port=5602 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtpjitterbuffer latency=20 do-lost=1 ! rtph265depay ! avdec_h265 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=2 drop=true sync=false",cv::CAP_GSTREAMER);
+  bool cap_open = cap.open("udpsrc port=5602 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtpjitterbuffer latency=10 do-lost=1 ! rtph265depay ! avdec_h265 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=2 drop=true sync=false",cv::CAP_GSTREAMER);
   
   if(!cap.isOpened()){
       std::cerr << "Error opening video 3" << std::endl;
@@ -107,7 +117,7 @@ void frame_grabber3()
 {
   std::cerr << "Waiting for side windows" << std::endl;
   cv::VideoCapture cap;
-  bool cap_open = cap.open("udpsrc port=5603 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtpjitterbuffer latency=20 do-lost=1 ! rtph265depay ! avdec_h265 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
+  bool cap_open = cap.open("udpsrc port=5603 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtpjitterbuffer latency=10 do-lost=1 ! rtph265depay ! avdec_h265 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
   
   if(!cap.isOpened()){
       std::cerr << "Error opening video 4" << std::endl;
@@ -140,15 +150,6 @@ void frame_grabber3()
 }
 
 
-
-
-void skybox_thread(){
-  //this will grab video from the 360 cameras and convert it to a equirect cubemap
-  
-
-}
-
-
 void mavlink_thread()
 {
   start_mavlink_thread();
@@ -164,30 +165,36 @@ void draw_hud()
 
 
 void map_thread(){
-   std::cerr << "Starting Map thread" << std::endl;
-   cv::Mat cur_loc;
-   //set to your API key and style JSON
-   maplibre maps(std::string(""),std::string("file://./style.json"));
-   while(true){
-     if (maps.get_map(&cur_loc,vh_pos.latitude_deg,vh_pos.longitude_deg,vh_att.yaw_deg,17) == 0){
-       cv::Point p1( 255, 240);
-       cv::Point p2( 240, 275);
-       cv::Point p3( 270, 275);
-       cv::Scalar color(128,255,128,200);
-       cv::line(cur_loc,p1,p2,color,2,cv::LINE_AA);
-       cv::line(cur_loc,p1,p3,color,2,cv::LINE_AA);
-       cv::line(cur_loc,p2,p3,color,2,cv::LINE_AA);
-       tex_set_colors(vid6,cur_loc.cols,cur_loc.rows,(void*)cur_loc.datastart);
-     
-     }
-     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-   }
-
-   std::cerr << "Map thread exited" << std::endl;
-
+  std::cerr << "Starting Map thread" << std::endl;
+  cv::Mat cur_loc;
+  cv::Mat mask(MAP_W,MAP_H,CV_8UC4,cv::Scalar(0,0,0,255));
+  int cx = MAP_W/2 - 1;
+  int cy = MAP_H/2 - 1;
+  cv::Point p1( cx   , cy-10);
+  cv::Point p2( cx-10, cy+15);
+  cv::Point p3( cx+10, cy+15);
+  cv::Scalar color(128,255,128,160);
+  cv::circle(mask,cv::Point(cx,cy), cx , cv::Scalar(0,0,0,0), -1, cv::LINE_AA); 
+  //set to your API key and style JSON
+  maplibre maps(std::string(""),std::string("file://./style.json"));
+  //load the circle and home markers
+  maps.add_icon(std::string("circle"),std::string("circle.png"));
+  maps.add_icon(std::string("home"),std::string("home.png"));
+  while(true){
+    //set home in the map
+    int home_set = maps.set_home(home_pos.latitude_deg,home_pos.longitude_deg);
+    if (maps.get_map(&cur_loc,vh_pos.latitude_deg,vh_pos.longitude_deg,vh_att.yaw_deg,map_zoom) == 0){
+      cv::line(cur_loc,p1,p2,color,2,cv::LINE_AA);
+      cv::line(cur_loc,p1,p3,color,2,cv::LINE_AA);
+      cv::line(cur_loc,p2,p3,color,2,cv::LINE_AA);
+      cur_loc = cur_loc - mask;
+      tex_set_colors(vid6,cur_loc.cols,cur_loc.rows,(void*)cur_loc.datastart);
+    }
+    //mavlink gps stream at most at 10Hz, so 20 fps is enough.
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  }
+  std::cerr << "Map thread exited" << std::endl;
 }
-
 
 int main(int argc, char* argv[]) {
 
@@ -220,7 +227,7 @@ int main(int argc, char* argv[]) {
   vid2 = tex_create(tex_type_image_nomips,tex_format_rgba32);
   tex_set_address(vid2, tex_address_clamp);
 
-  //setup third screen, we generate a plane with a 4:3 ratio
+  //setup fourth screen, we generate a plane with a 4:3 ratio
   plane3_mesh = mesh_gen_plane({1.25f*p3s,p3s},{0,0,1},{0,1,0});
   plane3_mat = material_copy_id(default_id_material_unlit);
   vid3 = tex_create(tex_type_image_nomips,tex_format_rgba32);
@@ -238,17 +245,18 @@ int main(int argc, char* argv[]) {
   vid5 = tex_create(tex_type_image_nomips,tex_format_rgba32);
   tex_set_address(vid5, tex_address_clamp);
 
+  //setup map screen, 1:1 ratio
+  plane6_mesh = mesh_gen_plane({0.8,0.8},{0,0,1},{0,1,0});
+  plane6_mat = material_copy_id(default_id_material_unlit);
+  vid6 = tex_create(tex_type_image_nomips,tex_format_rgba32);
+  tex_set_address(vid6, tex_address_clamp);
+
   //setup hud
   hud_mesh = mesh_gen_plane({1.5f*hud_s,hud_s},{0,0,1},{0,1,0});
   hud_mat = material_copy_id(default_id_material_unlit);
   hud_tex = tex_create(tex_type_image_nomips,tex_format_rgba32);
   tex_set_address(hud_tex, tex_address_clamp);
 
-  //setup map screen, 1:1 ratio
-  plane6_mesh = mesh_gen_plane({0.75,0.75},{0,0,1},{0,1,0});
-  plane6_mat = material_copy_id(default_id_material_unlit);
-  vid6 = tex_create(tex_type_image_nomips,tex_format_rgba32);
-  tex_set_address(vid6, tex_address_clamp);
 
   //hide hands, we are not using them right now.
   for (size_t h = 0; h < handed_max; h++) {
@@ -262,10 +270,10 @@ int main(int argc, char* argv[]) {
   material_set_texture(plane3_mat,"diffuse",vid3);
   material_set_texture(plane4_mat,"diffuse",vid4);
   material_set_texture(plane5_mat,"diffuse",vid5);
+  material_set_texture(plane6_mat,"diffuse",vid6);
+  material_set_transparency(plane6_mat,transparency_blend);
   material_set_texture(hud_mat,"diffuse",hud_tex);
   material_set_transparency(hud_mat,transparency_blend);
-  material_set_texture(plane6_mat,"diffuse",vid6);
-
 
   std::cout << "Starting threads" << std::endl;
   std::thread t0(&frame_grabber0);
@@ -282,6 +290,12 @@ int main(int argc, char* argv[]) {
   t4.detach();
   t5.detach();
   t6.detach();
+  
+  render_enable_skytex(false);
+  render_set_cam_root(matrix_t({0,0,1.25f}));
+  //can also stream over network, just add a tee and udp rtp stream.
+  output.open("appsrc do-timestamp=true ! videoconvert ! videorate ! video/x-raw,format=NV12,framerate=30/1 ! queue ! vaapih265enc bitrate=15000 keyframe-period=300 rate-control=2 ! h265parse config-interval=-1 ! mpegtsmux ! filesink location=output.ts", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
+
 
   std::cout << "Starting main loop" << std::endl;
   sk_run([]() {
@@ -318,6 +332,7 @@ int main(int argc, char* argv[]) {
         //setup hud position and orientation. HUD is always 1 unit in front of camera, facing it.
         vec3 at = input_head()->position + input_head()->orientation * vec3_forward * 1.0f;
         quat ori = quat_lookat(input_head()->position,at);
+
         //HUD plane
         ui_handle_begin("HUD", hud_pose, mesh_get_bounds(hud_mesh), false);
         render_add_mesh(hud_mesh, hud_mat, matrix_trs(at,ori,vec3_one));
@@ -328,6 +343,11 @@ int main(int argc, char* argv[]) {
         render_add_mesh(plane6_mesh, plane6_mat, matrix_identity);
         ui_handle_end();
         
+        //write video every 3rd frame. Since the CV1 uses 90Hz this gives 30 fps. Change according to your headset
+        if(cnt % 3)
+        //on cv1 around 55 degrees looks close to what is seen in the headset. you can play around with the resolution and fov.
+        render_screenshot_capture(&scr_callback, *input_head(), 1280, 720, 55, tex_format_rgba32, NULL); 
+        
         //print some debug stuff if needed
         if(cnt % 100 == 0){
             //std::cout << hud_pose.orientation.x << " " << hud_pose.orientation.y << " " << hud_pose.orientation.z << " " << hud_pose.orientation.w << std::endl << std::endl;
@@ -335,7 +355,7 @@ int main(int argc, char* argv[]) {
             //std::cout << vh_att.roll_deg << " " << vh_att.pitch_deg << std::endl;
             //std::cout << ori.x << " " << ori.y << " " << ori.z << " "<< ori.w << std::endl;
         }
-        
+         
         cnt++;
 
 	});

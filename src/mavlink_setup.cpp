@@ -41,7 +41,7 @@ void start_mavlink_thread(){
   telemetry.subscribe_gps_info([](Telemetry::GpsInfo gpsi){
      vh_gpsi = gpsi;
   });
-   telemetry.subscribe_raw_gps([](Telemetry::RawGps gpsr){
+  telemetry.subscribe_raw_gps([](Telemetry::RawGps gpsr){
      vh_gpsr = gpsr;
   });
  
@@ -71,6 +71,24 @@ void start_mavlink_thread(){
     if ((0 <= heartbeat.custom_mode) && (heartbeat.custom_mode < 25)) vh_fmode = fmodes[heartbeat.custom_mode];
     else vh_fmode = "UNKNOWN";
   });
+
+  telemetry.subscribe_home([](Telemetry::Position position){
+    home_pos = position;
+  });
+ 
+  telemetry.subscribe_distance_sensor([](Telemetry::DistanceSensor sensor){
+      vh_rngfnd = sensor;
+  });
+  
+  passthrough.subscribe_message(MAVLINK_MSG_ID_SYSTEM_TIME,[](const mavlink_message_t &msg){
+    mavlink_system_time_t systemtime;
+    mavlink_msg_system_time_decode(&msg,&systemtime);
+    gps_time = systemtime.time_unix_usec;
+  });
+
+
+
+
   //debugging packets from the source
  /*
   mavsdk.intercept_incoming_messages_async([](mavlink_message_t &msg) -> bool{
@@ -105,10 +123,9 @@ void start_mavlink_thread(){
       wfb_flags = mavlink_msg_radio_status_get_remnoise(&msg);
     }
   });
- 
 
   while(true){
-/*  std::cout << int(wfb_rssi) << std::endl;
+/*    std::cout << int(wfb_rssi) << std::endl;
     std::cout << int(wfb_errors) << std::endl;
     std::cout << int(wfb_fec_fixed) << std::endl;
     std::cout << int(wfb_flags) << std::endl;*/

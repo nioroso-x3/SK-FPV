@@ -1,6 +1,7 @@
 #ifndef STAB_H
 #define STAB_H
-#include "common.h"
+#include <opencv2/opencv.hpp>
+#include <vector>
 
 class stabilizer
 {
@@ -26,11 +27,17 @@ class stabilizer
     cv::Mat X_estimate;
     cv::Mat P_estimate;
     cv::Mat lastRigidTransform;
-  //writes stablized frame based on the last two frames to the Mat reference
+  //writes the translation and rotation required to stabilize the video to rx, ry and ra
   public:
     stabilizer();
-    void stabilize(cv::Mat &buf,cv::Mat &st_buf);
-
+    void stabilize(cv::Mat &buf, float* rx, float* ry, float* ra);
+    cv::Mat getFrame(void);
+    cv::Mat getPrevFrame(void);
+    cv::Mat getStabFrame(void);
+    void setZoomFactor(double f);
+    void setProcessVar(double f);
+    void setMeasVar(double f);
+    void setRoiDiv(double f);
 };
 
 

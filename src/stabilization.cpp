@@ -2,14 +2,14 @@
 
 stabilizer::stabilizer(){
 
-  downSample = 1.0f;
+  downSample = 1.0f/3.0f;
   zoomFactor = 1.0f;
   processVar = 0.03f;
   measVar = 2.0f;
-  roiDiv = 3.0f;
+  roiDiv = 3.5f;
   Q = cv::Mat(1, 3, CV_64F, processVar);
   R = cv::Mat(1, 3, CV_64F, measVar);
-  m = cv::Mat(2,3,CV_64F); 
+  m = cv::Mat::zeros(2, 3, CV_64F); 
   count = 0;
   x = 0;
   y = 0;
@@ -20,9 +20,8 @@ stabilizer::stabilizer(){
   std::cout << "stabilizer initialized" << std::endl;
 }
 
-void 
-stabilizer::stabilize(cv::Mat &buf,cv::Mat &st_buf){
-  //if (count > 3) return;
+void
+stabilizer::stabilize(cv::Mat &buf, float* rx, float* ry, float* ra){
   orig = buf.clone();
   currFrame = orig.clone();
 
@@ -34,13 +33,12 @@ stabilizer::stabilize(cv::Mat &buf,cv::Mat &st_buf){
   int top_left_y = double(res_h)/roiDiv;
   int roi_w = int(res_w - (double(res_w)/roiDiv)) - top_left_x;
   int roi_h = int(res_h - (double(res_h)/roiDiv)) - top_left_y;
-
+  
   cv::Rect roi = cv::Rect(top_left_x,top_left_y,roi_w,roi_h);
 
   cv::Size frameSize = cv::Size(res_w,res_h);
   if (downSample < 1.0){
-    cv::resize(orig,currFrame,frameSize);
-    orig = currFrame.clone();
+    cv::resize(orig,currFrame,frameSize, 0, 0, cv::INTER_NEAREST);
   }
   else{
     currFrame = orig.clone();
@@ -50,7 +48,7 @@ stabilizer::stabilize(cv::Mat &buf,cv::Mat &st_buf){
   cv::Mat tmp = currGray(roi).clone();
   currGray = tmp.clone();
    
-  if (prevFrame.empty()){
+  if (prevFrame.empty() || prevFrame.size() != currFrame.size()){
     prevOrig = orig.clone();
     prevFrame = currFrame.clone();
     prevGray = currGray.clone();
@@ -120,21 +118,54 @@ stabilizer::stabilize(cv::Mat &buf,cv::Mat &st_buf){
   m.at<double>(1, 1) = cos(da);
   m.at<double>(0, 2) = dx;
   m.at<double>(1, 2) = dy;
-  cv::Mat fS, f_stabilized;
-  cv::warpAffine(prevOrig, fS, m, cv::Size(res_w_orig, res_h_orig));
-  cv::Size s = fS.size();
-  cv::Mat T = cv::getRotationMatrix2D(cv::Point2f(s.width / 2, s.height / 2), 0, zoomFactor);
-  cv::warpAffine(fS, f_stabilized, T, s); 
+  *rx = (float)dx;
+  *ry = (float)dy;
+  *ra = (float)da;
+  //clamp values and scale
+  float mX = res_w_orig * 0.05;
+  float mY = res_h_orig * 0.05;
+  if (*rx > mX) *rx = mX;
+  if (*rx < -mX) *rx = -mX;
+  if (*ry > mY) *ry = mY;
+  if (*ry < -mY) *ry = -mY;
+  *rx /= res_w_orig;
+  *ry /= res_h_orig;
+  
   
   prevOrig = orig.clone();
   prevFrame = currFrame.clone();
   prevGray = currGray.clone();
   lastRigidTransform = m.clone();
-  int fwt = f_stabilized.cols * 0.1;
-  int fht = f_stabilized.rows * 0.1;
-  int fw = f_stabilized.cols * 0.8;
-  int fh = f_stabilized.rows * 0.8;
-  st_buf = f_stabilized(cv::Rect(fwt,fht,fw,fh)).clone();
   count += 1;
+}
+
+cv::Mat stabilizer::getFrame(){
+  return orig.clone();
+}
+
+cv::Mat stabilizer::getPrevFrame(){
+  return prevOrig.clone();
+}
+
+cv::Mat stabilizer::getStabFrame(){
+  cv::Mat fS, f_stabilized;
+  cv::warpAffine(prevOrig, fS, m, cv::Size(prevOrig.cols, prevOrig.rows));
+  cv::Size s = fS.size();
+  cv::Mat T = cv::getRotationMatrix2D(cv::Point2f(s.width / 2, s.height / 2), 0, 1.0);
+  cv::warpAffine(fS, f_stabilized, T, s);
+  return f_stabilized;
+}
+
+void stabilizer::setZoomFactor(double f){
+  zoomFactor = f;
+}
+void stabilizer::setProcessVar(double f){
+  processVar = f;
+}
+void stabilizer::setMeasVar(double f){
+  measVar = f;
+}
+void stabilizer::setRoiDiv(double f){
+  roiDiv = f;
 }
 

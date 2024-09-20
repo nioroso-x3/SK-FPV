@@ -8,8 +8,11 @@ Listens to mavlink at udp://0.0.0.0:14551, you can change the corresponding line
 
 Look at the comments in the code to modify the surface aspect ratio or position of a screen. You can also remove them by deleting them from the main loop.
 
-The maps require a "style.json" file to load the map styles, I included a sample terrain.json with free satellite images. Set up your custom style by changing the API key and json url for the mapping object in main.cpp.
+The maps require a "style.json" file to load the map styles, I included a sample style.json with free satellite images. Set up your custom style by changing the API key and json url for the mapping object in main.cpp.
 
+You also need to move the two png files for the map markers. Just copy everything in the "assets" folder to the same folder where the binary is.
+
+The output is now recorded as 720p30 h265 video saved as "output.ts". The video shows what is displayed in the VR headset. The pipeline is setup in main.cpp right before the renderer loop.
 
 ## Linux pre-requisites
 
@@ -56,7 +59,7 @@ make -j 4
 
 ## TODO
 
-Finish some missing MAVLINK HUD elements, like WFB telemetry.
+Show ADS-B, geofence, and waypoints in the map.
 
 Add RC control using the headset controllers / movement for the plane and mavlink gimbal.
 

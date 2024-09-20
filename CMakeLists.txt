@@ -23,6 +23,7 @@ find_package( CURL REQUIRED )
 find_package( ZLIB REQUIRED )
 find_package( JPEG REQUIRED )
 find_package( PNG REQUIRED )
+find_package( nlohmann_json 3.10.5 REQUIRED)
 find_library( ICU18n_LIBRARIES icui18n )
 find_library( ICU_LIBRARIES icuuc )
 find_library( WEBP_LIBRARIES webp )
@@ -62,6 +63,7 @@ target_link_libraries( SK_FPV
   PUBLIC ${OpenCV_LIBS}
   MAVSDK::mavsdk
   PkgConfig::CAIROMM
+  nlohmann_json::nlohmann_json
   ${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native/build/libmbgl-core.a 
   ${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native/build/libmbgl-vendor-csscolorparser.a 
   ${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native/build/libmbgl-vendor-parsedate.a
@@ -77,10 +79,5 @@ target_link_libraries( SK_FPV
   ${UV_LIBRARIES}
   ${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native/build/libmbgl-vendor-nunicode.a 
   ${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native/build/libmbgl-vendor-sqlite.a 
-  ${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native/build/libmbgl-core.a 
-  ${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native/build/libmbgl-vendor-csscolorparser.a 
-  ${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native/build/libmbgl-vendor-nunicode.a 
-  ${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native/build/libmbgl-vendor-parsedate.a 
-  ${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native/build/libmbgl-vendor-sqlite.a  
-
+  
 )

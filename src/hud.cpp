@@ -3,6 +3,7 @@
 #include <cairomm/context.h>
 #include <cairomm/surface.h>
 #include <sstream>
+#include <ctime>
 
 using namespace sk;
 using namespace mavsdk;
@@ -353,10 +354,25 @@ void drawHorizonLadder(const Cairo::RefPtr<Cairo::Context>& cr,
     std::vector<double> dash_pattern = {6.0, 4.0};
     cr->set_dash(dash_pattern, 0);
 
-    // Begin a new path for small dash lines
+    // Begin a new path for small dash lines below horizon
     cr->begin_new_path();
     for (int i = 0; i < 3; ++i) {
         cr->translate(0, pixel_per_deg);  // Move down per degree
+
+        // Draw small horizontal lines on the right side
+        cr->move_to(space / 2, 0);
+        cr->line_to(space / 2 + small_length, 0);
+
+        // Draw small horizontal lines on the left side
+        cr->move_to(-space / 2, 0);
+        cr->line_to(-(space / 2 + small_length), 0);
+
+        cr->stroke();  // Apply the strokes
+    }
+    // Restore the context to its original state before translation
+    cr->translate(-x, -y - 3 * pixel_per_deg);
+    for (int i = 0; i < 3; ++i) {
+        cr->translate(0, -pixel_per_deg);  // Move up per degree
 
         // Draw small horizontal lines on the right side
         cr->move_to(space / 2, 0);
@@ -372,7 +388,7 @@ void drawHorizonLadder(const Cairo::RefPtr<Cairo::Context>& cr,
     cr->set_dash(std::vector<double>(0), 0); // Resetting dash pattern to solid line
 
     // Restore the context to its original state before translation
-    cr->translate(-x, -y - 3 * pixel_per_deg);
+    cr->translate(-x, -y + 3 * pixel_per_deg);
     cr->restore();
 }
 
@@ -418,7 +434,7 @@ void drawStatusMsg(const Cairo::RefPtr<Cairo::Context>& cr, float x, float y, st
     status_counter--;
     cr->set_font_size(40);
     cr->move_to(x,y);
-    cr->show_text("COM: ");
+    cr->show_text("COM->");
     cr->move_to(x+110,y);
     cr->show_text(msg);
   }
@@ -481,6 +497,7 @@ void drawAircraftSymbol(const Cairo::RefPtr<Cairo::Context>& cr, float x, float 
   cr->save();
   cr->set_line_width(3.0);
   cr->translate(x,y);
+  cr->begin_new_path();
   cr->move_to(-25,0);
   cr->line_to(-10,0);
   cr->line_to(-5,6);
@@ -488,13 +505,27 @@ void drawAircraftSymbol(const Cairo::RefPtr<Cairo::Context>& cr, float x, float 
   cr->line_to(5,6);
   cr->line_to(10,0);
   cr->line_to(25,0);
+  cr->stroke();
+  cr->restore();
+}
+
+void drawHomeDirection(const Cairo::RefPtr<Cairo::Context>& cr, float x, float y, float heading, int s){
+  cr->save();
+  cr->set_line_width(2.0);
+  cr->translate(x,y);
+  cr->rotate(heading * (M_PI/180.0));
+  cr->move_to(0   , 3*s);
+  cr->line_to(0   ,-3*s);
+  cr->move_to(-2*s,-1*s);
+  cr->line_to(0   ,-3*s);
+  cr->move_to(2*s ,-1*s);
+  cr->line_to(0   ,-3*s);
+  cr->stroke();
   cr->restore();
 }
 
 
-
-void
-draw_cairo_hud()
+void draw_cairo_hud()
 {
   
   auto surface = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, HUD_w, HUD_h);
@@ -502,7 +533,7 @@ draw_cairo_hud()
   auto cr = Cairo::Context::create(surface);
   cr->save(); // Save the initial state of the Cairo context
   while(true){
-    float pix_deg = 30;
+    float pix_deg = 32;
     float roll = std::isnan(vh_att.roll_deg) ? 0.0 : -vh_att.roll_deg;
     float pitch = std::isnan(vh_att.pitch_deg) ? 0.0 : vh_att.pitch_deg;
     float head = std::isnan(vh_att.yaw_deg) ? 0.0 : vh_att.yaw_deg ;
@@ -511,6 +542,12 @@ draw_cairo_hud()
     float alt_r = std::isnan(vh_pos.relative_altitude_m) ? 0.0 : vh_pos.relative_altitude_m;
     double lat_d = std::isnan(vh_pos.latitude_deg) ? 0.0 : vh_pos.latitude_deg;
     double lon_d = std::isnan(vh_pos.longitude_deg) ? 0.0 : vh_pos.longitude_deg;
+    double lat_h = std::isnan(home_pos.latitude_deg) ? 0.0 : home_pos.latitude_deg;
+    double lon_h = std::isnan(home_pos.longitude_deg) ? 0.0 : home_pos.longitude_deg;
+    float home_h = get_heading(lon_d,lat_d,lon_h,lat_h);
+    home_h -= head;
+    if (home_h < 0.0) home_h += 360;
+    float home_d = get_distance(lon_d,lat_d,lon_h,lat_h);
     float as = std::isnan(vh_fwing.airspeed_m_s) ? 0.0 : vh_fwing.airspeed_m_s*3.6; //km/h
     float thr = std::isnan(vh_fwing.throttle_percentage) ? 0.0 : vh_fwing.throttle_percentage;
     float gs = std::isnan(vh_gpsr.velocity_m_s) ? 0.0 : vh_gpsr.velocity_m_s*3.6; //km/h
@@ -521,6 +558,13 @@ draw_cairo_hud()
     float a1 = std::isnan(vh_bat1.current_battery_a) ? 0.0 : vh_bat1.current_battery_a;
     int n_sats = vh_gpsi.num_satellites; 
     std::string mode = vh_fmode;
+    float radio_rssi = wfb_rssi;
+    float rc_pct = std::isnan(vh_rc.signal_strength_percent) ? 0.0 : 100*vh_rc.signal_strength_percent/255;
+    float rngfnd = std::isnan(vh_rngfnd.current_distance_m) ? 0.0 : vh_rngfnd.current_distance_m;
+    uint64_t unix_time = gps_time/1000000;
+    std::tm* time_info = std::localtime((time_t*)&unix_time);
+    char tbuffer[128];
+    std::strftime(tbuffer,sizeof(tbuffer), "%H:%M:%S %Y/%m/%d", time_info);
 
     //set font seize
     cr->select_font_face("@cairo:monospace",Cairo::FONT_SLANT_NORMAL,Cairo::FONT_WEIGHT_BOLD);
@@ -533,7 +577,7 @@ draw_cairo_hud()
     cr->paint();    // fill image with the color
     cr->restore();
     //set line and color
-    cr->set_source_rgba(0.1, 1.0, 0.1, 0.97);
+    cr->set_source_rgba(0.3, 1.0, 0.3, 0.95);
     cr->set_line_width(4.5);
 
     //begin drawing elements
@@ -547,14 +591,19 @@ draw_cairo_hud()
     drawThrottle(cr,(HUD_w/24)*4,(HUD_h/12)*12,thr);
     drawBatteryStatus(cr,(HUD_w/4),(HUD_h/12)*11,v0,a0);
     drawLabel(cr,0,(HUD_h/32)*24,mode,32);
-    drawStatusMsg(cr,(HUD_w/8),(HUD_h/10)*8,lastMsg);
-    
+    drawStatusMsg(cr,(HUD_w/16),(HUD_h/10)*8,lastMsg);
+    drawSimpleLabel(cr,(HUD_w/32)*27,(HUD_h/32)*12,"WFB",radio_rssi,0,30.0f);
+    drawSimpleLabel(cr,(HUD_w/32)*27,(HUD_h/32)*13,"RC%",rc_pct,0,30.0f);
+    drawSimpleLabel(cr, (HUD_w/32)*27, (HUD_h/2.0)+50,"RNGFND",rngfnd,1,30.0f);
+    drawSimpleLabel(cr,(HUD_w/32)*28,(HUD_h/2)+100,"HOME",home_d,0,30.0f);
+    drawHomeDirection(cr, (HUD_w/32)*27+16,(HUD_h/2)+90,home_h,5);
+    drawLabel(cr, (HUD_w/32)*12+16, (HUD_h/32)*31+24, std::string(tbuffer),30.0f);
     //translating, rolling and centering the canvas for the pitch ladder.
     cr->translate(HUD_w/2.0,HUD_h/2.0);
 
-   // Roll transformation
+    // Roll transformation
     cr->rotate(roll * (M_PI/180.0));
-   // Pitch transformation
+    // Pitch transformation
     cr->translate(0, pitch * pix_deg);
 
     
@@ -575,7 +624,7 @@ draw_cairo_hud()
     cr->restore(); // Restore the initial state
     //write data to hud texture
     tex_set_colors(hud_tex,HUD_w,HUD_h,(void*)surface->get_data());
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
   }
 }
 

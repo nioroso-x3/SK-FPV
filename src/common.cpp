@@ -36,7 +36,7 @@ std::string fmodes[] ={
 "FBWB",
 "CRUISE",
 "AUTOTUNE",
-"9",
+"UNKNOWN_9",
 "Auto",
 "RTL",
 "Loiter",
@@ -95,7 +95,7 @@ material_t plane5_mat;
 pose_t     plane5_pose = {{2.2f,0.2f,0.3f}, {0.0,-0.7071608,0.0,0.7071068}};
 tex_t      vid5;
 
-
+bool run_stab = false;
 bool gnd_cam_color = true;
 
 //cubemap for skybox
@@ -112,19 +112,15 @@ mesh_t     plane6_mesh;
 material_t plane6_mat;
 pose_t     plane6_pose = {{-1.7f,1.0f,-1.99f}, {0,0,0,1}};
 tex_t      vid6;
+double     map_zoom = 16;
 
 
-//buffers for stabilization
-//currFrame, currGray, prevOrig and prevGray for the wfb_stabilizer script
-cv::Mat buffer0[4];
-cv::Mat buffer1[4];
-cv::Mat buffer2[4];
 
 float p1s = 2.2f;
 float p2s = 1.0f;
 float p3s = 1.0f;
 float pWs = 2.2f;
-float hud_s = 0.45f;
+float hud_s = 0.5f;
 
 uint64_t cnt = 0;
 
@@ -164,8 +160,39 @@ Telemetry::RcStatus vh_rc;
 //flight mode
 std::string vh_fmode = "UNKNOWN";
 
+//home position
+Telemetry::Position home_pos;
+
+
 int8_t wfb_rssi = 0;
 uint16_t wfb_errors = 0;
 uint16_t wfb_fec_fixed = 0;
 int8_t wfb_flags = 0;
 
+Telemetry::DistanceSensor vh_rngfnd;
+
+uint64_t gps_time = 0;
+
+float get_heading(float lon1, float lat1, float lon2, float lat2) {
+    lon1 *= M_PI/180.0;
+    lon2 *= M_PI/180.0;
+    lat1 *= M_PI/180.0;
+    lat2 *= M_PI/180.0;
+    float y = sin(lon2 - lon1) * cos(lat2);
+    float x = (cos(lat1) * sin(lat2)) - ( sin(lat1) * cos(lat2) * cos(lon2 - lon1));
+    float o = atan2(y,x);
+    return fmodf(o*180/M_PI + 360,360);
+}
+
+float get_distance(float lon1, float lat1, float lon2, float lat2) {
+    const float R = 6371000.0; // Earth's radius in meters
+    float dLat = (lat2 - lat1) * M_PI / 180.0;
+    float dLon = (lon2 - lon1) * M_PI / 180.0;
+    
+    float a = sin(dLat / 2) * sin(dLat / 2) +
+              cos(lat1 * M_PI / 180.0) * cos(lat2 * M_PI / 180.0) *
+              sin(dLon / 2) * sin(dLon / 2);
+    float c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    
+    return R * c; // Distance in meters
+}
