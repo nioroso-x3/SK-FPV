@@ -21,7 +21,7 @@ void frame_grabber0()
 {
   std::cerr << "Waiting for FPV camera" << std::endl;
   cv::VideoCapture cap;
-  bool cap_open = cap.open("udpsrc port=5600 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtpjitterbuffer latency=10 do-lost=true ! rtph265depay ! avdec_h265 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
+  bool cap_open = cap.open("udpsrc port=5600 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtpjitterbuffer latency=10 do-lost=true ! rtph265depay ! h265parse ! vaapih265dec ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
   
   if(!cap.isOpened()){
       std::cerr << "Error opening video 1" << std::endl;
@@ -50,7 +50,7 @@ void frame_grabber1()
 {
   std::cerr << "Waiting for 45deg camera" << std::endl;
   cv::VideoCapture cap;
-  bool cap_open = cap.open("udpsrc port=5601 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rptjitterbuffer latency=10 do-lost=1 ! rtph265depay ! avdec_h265 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=2 drop=true sync=false",cv::CAP_GSTREAMER);
+  bool cap_open = cap.open("udpsrc port=5601 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtpjitterbuffer latency=10 do-lost=true ! rtph265depay ! h265parse ! vaapih265dec ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
   
   if(!cap.isOpened()){
       std::cerr << "Error opening video 2" << std::endl;
@@ -79,7 +79,7 @@ void frame_grabber2()
 {
   std::cerr << "Waiting for ground cameras" << std::endl;
   cv::VideoCapture cap;
-  bool cap_open = cap.open("udpsrc port=5602 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtpjitterbuffer latency=10 do-lost=1 ! rtph265depay ! avdec_h265 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=2 drop=true sync=false",cv::CAP_GSTREAMER);
+  bool cap_open = cap.open("udpsrc port=5602 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtpjitterbuffer latency=10 do-lost=1 ! rtph265depay ! h265parse ! vaapih265dec ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=2 drop=true sync=false",cv::CAP_GSTREAMER);
   
   if(!cap.isOpened()){
       std::cerr << "Error opening video 3" << std::endl;
@@ -117,7 +117,7 @@ void frame_grabber3()
 {
   std::cerr << "Waiting for side windows" << std::endl;
   cv::VideoCapture cap;
-  bool cap_open = cap.open("udpsrc port=5603 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtpjitterbuffer latency=10 do-lost=1 ! rtph265depay ! avdec_h265 ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
+  bool cap_open = cap.open("udpsrc port=5603 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtpjitterbuffer latency=10 do-lost=1 ! rtph265depay ! h265parse ! vaapih265dec ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
   
   if(!cap.isOpened()){
       std::cerr << "Error opening video 4" << std::endl;
@@ -294,7 +294,7 @@ int main(int argc, char* argv[]) {
   render_enable_skytex(false);
   render_set_cam_root(matrix_t({0,0,1.25f}));
   //can also stream over network, just add a tee and udp rtp stream.
-  output.open("appsrc do-timestamp=true ! videoconvert ! videorate ! video/x-raw,format=NV12,framerate=30/1 ! queue ! vaapih265enc bitrate=15000 keyframe-period=300 rate-control=2 ! h265parse config-interval=-1 ! mpegtsmux ! filesink location=output.ts", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
+  output.open("appsrc do-timestamp=true ! videoconvert ! videorate ! video/x-raw,format=NV12,framerate=15/1 ! queue ! vaapih264enc ! h264parse config-interval=-1 ! mpegtsmux ! filesink location=output.ts", cv::CAP_GSTREAMER, 0, 15, cv::Size(864, 480), true);
 
 
   std::cout << "Starting main loop" << std::endl;
@@ -346,7 +346,7 @@ int main(int argc, char* argv[]) {
         //write video every 3rd frame. Since the CV1 uses 90Hz this gives 30 fps. Change according to your headset
         if(cnt % 3)
         //on cv1 around 55 degrees looks close to what is seen in the headset. you can play around with the resolution and fov.
-        render_screenshot_capture(&scr_callback, *input_head(), 1280, 720, 55, tex_format_rgba32, NULL); 
+        render_screenshot_capture(&scr_callback, *input_head(), 864, 480, 55, tex_format_rgba32, NULL); 
         
         //print some debug stuff if needed
         if(cnt % 100 == 0){
