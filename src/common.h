@@ -12,6 +12,7 @@
 #include <mavsdk/plugins/mavlink_passthrough/mavlink_passthrough.h>
 #include <chrono>
 #include <cmath>
+#include <map>
 
 #define HUD_COLOR cv::Scalar(0,255,0,200)
 #define HUD_COLOR_CLR cv::Scalar(0,0,0,0)
@@ -142,6 +143,9 @@ extern Telemetry::DistanceSensor vh_rngfnd;
 
 //gps time
 extern uint64_t gps_time;
+
+//ground station rx stream stats
+extern std::map<std::string,std::vector<int>> wfb_rx; 
 
 float get_heading(float,float,float,float);
 float get_distance(float,float,float,float);

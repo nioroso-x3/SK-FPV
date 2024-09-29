@@ -524,6 +524,13 @@ void drawHomeDirection(const Cairo::RefPtr<Cairo::Context>& cr, float x, float y
   cr->restore();
 }
 
+void drawDateTime(const Cairo::RefPtr<Cairo::Context>& cr, float x, float y, uint64_t time, float size){
+  uint64_t unix_time = time/1000000;
+  std::tm* time_info = std::localtime((time_t*)&unix_time);
+  char tbuffer[128];
+  std::strftime(tbuffer,sizeof(tbuffer), "%H:%M:%S %Y/%m/%d", time_info);
+  drawLabel(cr, x+16, y+24, std::string(tbuffer),size);
+}
 
 void draw_cairo_hud()
 {
@@ -561,10 +568,22 @@ void draw_cairo_hud()
     float radio_rssi = wfb_rssi;
     float rc_pct = std::isnan(vh_rc.signal_strength_percent) ? 0.0 : 100*vh_rc.signal_strength_percent/255;
     float rngfnd = std::isnan(vh_rngfnd.current_distance_m) ? 0.0 : vh_rngfnd.current_distance_m;
-    uint64_t unix_time = gps_time/1000000;
-    std::tm* time_info = std::localtime((time_t*)&unix_time);
-    char tbuffer[128];
-    std::strftime(tbuffer,sizeof(tbuffer), "%H:%M:%S %Y/%m/%d", time_info);
+    int wfb_rx_avg_rssi = 0;
+    int video_streams = 0;
+    //calculate average rssi
+    for(const auto& pair : wfb_rx){
+       const std::string &key = pair.first;
+       if (key.find("video") != std::string::npos){
+           const std::vector<int> &values = pair.second;
+           if (values[0] == -1000) continue;
+           video_streams++;
+           wfb_rx_avg_rssi += values[0];
+           //std::cout << key << " " << values[0] << " " << values[1] << " " << values[2] << std::endl;
+       }
+    }
+    if (video_streams != 0)
+    wfb_rx_avg_rssi /= video_streams;
+
 
     //set font seize
     cr->select_font_face("@cairo:monospace",Cairo::FONT_SLANT_NORMAL,Cairo::FONT_WEIGHT_BOLD);
@@ -592,12 +611,14 @@ void draw_cairo_hud()
     drawBatteryStatus(cr,(HUD_w/4),(HUD_h/12)*11,v0,a0);
     drawLabel(cr,0,(HUD_h/32)*24,mode,32);
     drawStatusMsg(cr,(HUD_w/16),(HUD_h/10)*8,lastMsg);
-    drawSimpleLabel(cr,(HUD_w/32)*27,(HUD_h/32)*12,"WFB",radio_rssi,0,30.0f);
-    drawSimpleLabel(cr,(HUD_w/32)*27,(HUD_h/32)*13,"RC%",rc_pct,0,30.0f);
+    drawSimpleLabel(cr,(HUD_w/32)*27,(HUD_h/32)*12,"WFB TX",radio_rssi,0,30.0f);
+    drawSimpleLabel(cr,(HUD_w/32)*27,(HUD_h/32)*13,"RADIO%",rc_pct,0,30.0f);
     drawSimpleLabel(cr, (HUD_w/32)*27, (HUD_h/2.0)+50,"RNGFND",rngfnd,1,30.0f);
     drawSimpleLabel(cr,(HUD_w/32)*28,(HUD_h/2)+100,"HOME",home_d,0,30.0f);
     drawHomeDirection(cr, (HUD_w/32)*27+16,(HUD_h/2)+90,home_h,5);
-    drawLabel(cr, (HUD_w/32)*12+16, (HUD_h/32)*31+24, std::string(tbuffer),30.0f);
+    drawDateTime(cr, (HUD_w/32)*12, (HUD_h/32)*31, gps_time, 30.0f);
+    drawSimpleLabel(cr,(HUD_w/32)*27,(HUD_h/2)+150,"WFB RX",wfb_rx_avg_rssi,0,30.0f);
+   
     //translating, rolling and centering the canvas for the pitch ladder.
     cr->translate(HUD_w/2.0,HUD_h/2.0);
 

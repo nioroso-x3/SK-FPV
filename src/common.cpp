@@ -171,6 +171,8 @@ int8_t wfb_flags = 0;
 
 Telemetry::DistanceSensor vh_rngfnd;
 
+std::map<std::string,std::vector<int>> wfb_rx; 
+
 uint64_t gps_time = 0;
 
 float get_heading(float lon1, float lat1, float lon2, float lat2) {

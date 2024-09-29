@@ -5,7 +5,7 @@ void start_mavlink_thread(){
   bool found_wfb = false;
   std::cerr << "Started mavlink setup thread" << std::endl;
   Mavsdk mavsdk{Mavsdk::Configuration{Mavsdk::ComponentType::GroundStation}};
-  ConnectionResult connection_result = mavsdk.add_any_connection("udp://0.0.0.0:14551");
+  ConnectionResult connection_result = mavsdk.add_any_connection("udp://0.0.0.0:14550");
 
   if (connection_result != ConnectionResult::Success) {
       std::cerr << "Connection failed: " << connection_result << '\n';

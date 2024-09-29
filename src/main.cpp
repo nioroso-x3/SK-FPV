@@ -3,6 +3,7 @@
 #include "mavlink_setup.h"
 #include "stabilization.h"
 #include "mapping.h"
+#include "wfb_stats.h"
 
 using namespace sk;
 using namespace mavsdk;
@@ -21,7 +22,7 @@ void frame_grabber0()
 {
   std::cerr << "Waiting for FPV camera" << std::endl;
   cv::VideoCapture cap;
-  bool cap_open = cap.open("udpsrc port=5600 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtpjitterbuffer latency=10 do-lost=true ! rtph265depay ! h265parse ! vaapih265dec ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
+  bool cap_open = cap.open("udpsrc port=5600 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtpjitterbuffer latency=25 do-lost=true ! rtph265depay ! h265parse ! vaapih265dec ! vaapipostproc ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
   
   if(!cap.isOpened()){
       std::cerr << "Error opening video 1" << std::endl;
@@ -50,7 +51,7 @@ void frame_grabber1()
 {
   std::cerr << "Waiting for 45deg camera" << std::endl;
   cv::VideoCapture cap;
-  bool cap_open = cap.open("udpsrc port=5601 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtpjitterbuffer latency=10 do-lost=true ! rtph265depay ! h265parse ! vaapih265dec ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
+  bool cap_open = cap.open("udpsrc port=5601 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtpjitterbuffer latency=25 do-lost=true ! rtph265depay ! h265parse ! vaapih265dec ! vaapipostproc ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
   
   if(!cap.isOpened()){
       std::cerr << "Error opening video 2" << std::endl;
@@ -79,7 +80,7 @@ void frame_grabber2()
 {
   std::cerr << "Waiting for ground cameras" << std::endl;
   cv::VideoCapture cap;
-  bool cap_open = cap.open("udpsrc port=5602 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtpjitterbuffer latency=10 do-lost=1 ! rtph265depay ! h265parse ! vaapih265dec ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=2 drop=true sync=false",cv::CAP_GSTREAMER);
+  bool cap_open = cap.open("udpsrc port=5602 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H264 ! queue ! rtpjitterbuffer latency=25 do-lost=1 ! rtph264depay ! h264parse ! vaapih264dec ! vaapipostproc ! video/x-raw,format=RGBA ! appsink max-buffers=2 drop=true sync=false",cv::CAP_GSTREAMER);
   
   if(!cap.isOpened()){
       std::cerr << "Error opening video 3" << std::endl;
@@ -117,7 +118,7 @@ void frame_grabber3()
 {
   std::cerr << "Waiting for side windows" << std::endl;
   cv::VideoCapture cap;
-  bool cap_open = cap.open("udpsrc port=5603 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtpjitterbuffer latency=10 do-lost=1 ! rtph265depay ! h265parse ! vaapih265dec ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
+  bool cap_open = cap.open("udpsrc port=5603 caps=application/x-rtp, media=video,clock-rate=90000, encoding-name=H265 ! queue ! rtpjitterbuffer latency=25 do-lost=1 ! rtph265depay ! h265parse ! vaapih265dec ! vaapipostproc ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",cv::CAP_GSTREAMER);
   
   if(!cap.isOpened()){
       std::cerr << "Error opening video 4" << std::endl;
@@ -163,7 +164,6 @@ void draw_hud()
   std::cerr << "HUD thread exited" << std::endl;
 }
 
-
 void map_thread(){
   std::cerr << "Starting Map thread" << std::endl;
   cv::Mat cur_loc;
@@ -194,6 +194,21 @@ void map_thread(){
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
   }
   std::cerr << "Map thread exited" << std::endl;
+}
+
+void wfbgs_thread(){
+  wfb_stats wfb;
+  std::cout << "WFB rx stats thread started" << std::endl;
+  while(true){
+
+    int openres =  wfb.open("127.0.0.1",8003);
+    if (openres != 0){
+      std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+      continue; 
+    }
+    wfb.start(wfb_rx);
+  }
+  std::cout << "WFB rx stats thread finished" << std::endl;
 }
 
 int main(int argc, char* argv[]) {
@@ -283,6 +298,7 @@ int main(int argc, char* argv[]) {
   std::thread t4(&draw_hud);
   std::thread t5(&mavlink_thread);
   std::thread t6(&map_thread);
+  std::thread t7(&wfbgs_thread);
   t0.detach();
   t1.detach();
   t2.detach();
@@ -290,11 +306,12 @@ int main(int argc, char* argv[]) {
   t4.detach();
   t5.detach();
   t6.detach();
+  t7.detach();
   
   render_enable_skytex(false);
   render_set_cam_root(matrix_t({0,0,1.25f}));
   //can also stream over network, just add a tee and udp rtp stream.
-  output.open("appsrc do-timestamp=true ! videoconvert ! videorate ! video/x-raw,format=NV12,framerate=15/1 ! queue ! vaapih264enc ! h264parse config-interval=-1 ! mpegtsmux ! filesink location=output.ts", cv::CAP_GSTREAMER, 0, 15, cv::Size(864, 480), true);
+  output.open("appsrc do-timestamp=true ! videoconvert ! videorate ! video/x-raw,format=NV12,framerate=30/1 ! queue ! vaapih265enc bitrate=10000 ! h265parse config-interval=-1 ! mpegtsmux ! filesink location=output.ts", cv::CAP_GSTREAMER, 0, 30, cv::Size(1024, 576), true);
 
 
   std::cout << "Starting main loop" << std::endl;
@@ -343,10 +360,8 @@ int main(int argc, char* argv[]) {
         render_add_mesh(plane6_mesh, plane6_mat, matrix_identity);
         ui_handle_end();
         
-        //write video every 3rd frame. Since the CV1 uses 90Hz this gives 30 fps. Change according to your headset
-        if(cnt % 3)
         //on cv1 around 55 degrees looks close to what is seen in the headset. you can play around with the resolution and fov.
-        render_screenshot_capture(&scr_callback, *input_head(), 864, 480, 55, tex_format_rgba32, NULL); 
+        render_screenshot_capture(&scr_callback, *input_head(), 1024, 576, 55, tex_format_rgba32, NULL); 
         
         //print some debug stuff if needed
         if(cnt % 100 == 0){
@@ -366,5 +381,6 @@ int main(int argc, char* argv[]) {
   t4.join();
   t5.join();
   t6.join();
+  t7.join();
   return 0;
 }
