@@ -56,6 +56,9 @@ make -j 4
 # Run the app
 ./SK_FPV
 ```
+## Demo
+
+https://github.com/user-attachments/assets/723a32c0-491a-47d6-b8f6-087a49f1415c
 
 ## TODO
 
