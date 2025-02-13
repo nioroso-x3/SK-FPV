@@ -2,14 +2,18 @@
 
 stabilizer::stabilizer(){
 
-  downSample = 1.0f/3.0f;
+  downSample = 1.0f/2.0f;
   zoomFactor = 1.0f;
   processVar = 0.03f;
   measVar = 2.0f;
-  roiDiv = 3.5f;
+  roiDiv = 3.0f;
   Q = cv::Mat(1, 3, CV_64F, processVar);
   R = cv::Mat(1, 3, CV_64F, measVar);
-  m = cv::Mat::zeros(2, 3, CV_64F); 
+  m = cv::Mat::zeros(2, 3, CV_64F);
+  m.at<double>(0, 0) = 1;
+  m.at<double>(1, 1) = 1;
+  lastRigidTransform = m.clone(); 
+  xform = m.clone();
   count = 0;
   x = 0;
   y = 0;
@@ -19,6 +23,7 @@ stabilizer::stabilizer(){
   da = 0;
   std::cout << "stabilizer initialized" << std::endl;
 }
+
 
 void
 stabilizer::stabilize(cv::Mat &buf, float* rx, float* ry, float* ra){
@@ -76,7 +81,7 @@ stabilizer::stabilize(cv::Mat &buf, float* rx, float* ry, float* ra){
     if (currPts.size() && prevPts.size()){
       m = cv::estimateAffinePartial2D(prevPts, currPts);
     }
-    if (m.empty()) {
+    if (m.data == nullptr) {
       m = lastRigidTransform;
     }
     
@@ -130,13 +135,22 @@ stabilizer::stabilize(cv::Mat &buf, float* rx, float* ry, float* ra){
   if (*ry < -mY) *ry = -mY;
   *rx /= res_w_orig;
   *ry /= res_h_orig;
-  
+  xform = m.clone();
+  xform.at<double>(0, 2) = *rx;
+  xform.at<double>(1, 2) = *ry;
+ 
   
   prevOrig = orig.clone();
   prevFrame = currFrame.clone();
   prevGray = currGray.clone();
   lastRigidTransform = m.clone();
-  count += 1;
+  count++;
+}
+
+void
+stabilizer::stabilize_i(cv::Mat &buf){
+  float a,b,c;
+  stabilize(buf,&a,&b,&c);
 }
 
 cv::Mat stabilizer::getFrame(){
@@ -153,7 +167,8 @@ cv::Mat stabilizer::getStabFrame(){
   cv::Size s = fS.size();
   cv::Mat T = cv::getRotationMatrix2D(cv::Point2f(s.width / 2, s.height / 2), 0, 1.0);
   cv::warpAffine(fS, f_stabilized, T, s);
-  return f_stabilized;
+  cv::Rect roi(s.width*0.05,s.height*0.05,s.width*0.9,s.height*0.9);
+  return f_stabilized(roi).clone();
 }
 
 void stabilizer::setZoomFactor(double f){

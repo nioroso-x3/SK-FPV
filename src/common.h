@@ -13,6 +13,7 @@
 #include <chrono>
 #include <cmath>
 #include <map>
+#include "framegrabber.h"
 
 #define HUD_COLOR cv::Scalar(0,255,0,200)
 #define HUD_COLOR_CLR cv::Scalar(0,0,0,0)
@@ -26,42 +27,11 @@ extern std::string fmodes_PX4[];
 //pose_t controls location, X (left/right), Y(up/down), Z(front/back). The second argument is a quartenion, you can search for calculators if you want to change the screen angle and rotation.
 
 //Globals so all threads can access them
+//
 
-//first screen
-extern mesh_t     plane_mesh;
-extern material_t plane_mat;
-extern pose_t     plane_pose;
-extern tex_t vid0;
+extern VideoContainer vsurfaces;
 
-//second screen
-extern mesh_t     plane1_mesh;
-extern material_t plane1_mat;
-extern pose_t     plane1_pose;
-extern tex_t vid1;
 
-//ground stereo cameras
-extern mesh_t     plane2_mesh;
-extern material_t plane2_mat;
-extern pose_t     plane2_pose;
-extern tex_t vid2;
-extern bool gnd_cam_color;
-
-extern mesh_t     plane3_mesh;
-extern material_t plane3_mat;
-extern pose_t     plane3_pose;
-extern tex_t vid3;
-
-//left window
-extern mesh_t     plane4_mesh;
-extern material_t plane4_mat;
-extern pose_t     plane4_pose;
-extern tex_t vid4;
-
-//right window
-extern mesh_t     plane5_mesh;
-extern material_t plane5_mat;
-extern pose_t     plane5_pose;
-extern tex_t vid5;
 
 //Map
 extern mesh_t     plane6_mesh;
@@ -85,11 +55,6 @@ extern float p2s;
 extern float p3s;
 extern float pWs;
 extern float hud_s;
-
-
-extern bool run_stab;
-extern bool gnd_cam;
-
 
 //renderer frame counter
 extern uint64_t cnt;
@@ -149,5 +114,6 @@ extern std::map<std::string,std::vector<int>> wfb_rx;
 
 float get_heading(float,float,float,float);
 float get_distance(float,float,float,float);
+
 
 #endif

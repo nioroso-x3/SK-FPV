@@ -1,7 +1,11 @@
 # To use this template, 
 cmake_minimum_required(VERSION 3.11)
 project(SK_FPV VERSION "0.0.1" LANGUAGES CXX C)
-
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "11.999" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS "11.0")
+        message(FATAL_ERROR "Only GCC 11.x is supported! Found: ${CMAKE_CXX_COMPILER_VERSION}")
+    endif()
+endif()
 # Grab and build StereoKit from the GitHub repository. Here we're setting SK up
 # as a statically linked library.
 include(FetchContent)
@@ -24,7 +28,26 @@ find_package( ZLIB REQUIRED )
 find_package( JPEG REQUIRED )
 find_package( PNG REQUIRED )
 find_package( nlohmann_json 3.10.5 REQUIRED )
-find_package( msgpack REQUIRED )
+find_package( msgpack CONFIG )
+if (NOT msgpack_FOUND)
+    find_package(msgpack-c CONFIG)
+endif()
+
+if (NOT msgpack_FOUND AND NOT msgpack-c_FOUND)
+    message(FATAL_ERROR "msgpack library not found!")
+endif()
+
+if (msgpack_FOUND)
+    find_library(MSGPACK_LIBRARIES msgpackc)
+    message(STATUS "Using msgpackc")
+endif()
+
+if (msgpack-c_FOUND)
+    find_library(MSGPACK_LIBRARIES msgpack-c)
+    message(STATUS "Using msgpack-c")
+endif()
+
+
 find_library( ICU18n_LIBRARIES icui18n )
 find_library( ICU_LIBRARIES icuuc )
 find_library( WEBP_LIBRARIES webp )
@@ -57,6 +80,8 @@ add_executable( SK_FPV
   src/stabilization.cpp
   src/mapping.cpp
   src/wfb_stats.cpp
+  src/fisheye.cpp
+  src/framegrabber.cpp
 )
 
 # Link to dependencies
@@ -66,7 +91,7 @@ target_link_libraries( SK_FPV
   MAVSDK::mavsdk
   PkgConfig::CAIROMM
   nlohmann_json::nlohmann_json
-  msgpackc
+  ${MSGPACK_LIBRARIES}
   ${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native/build/libmbgl-core.a 
   ${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native/build/libmbgl-vendor-csscolorparser.a 
   ${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native/build/libmbgl-vendor-parsedate.a

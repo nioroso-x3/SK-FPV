@@ -54,49 +54,7 @@ std::string fmodes[] ={
 "LOITERQLAND"};
 
 
-
-
-mesh_t     plane_mesh;
-material_t plane_mat;
-pose_t     plane_pose = {{0.0f,0.2,-2.0f}, {0,0,0,1}};
-tex_t vid0;
-
-//second screen
-mesh_t     plane1_mesh;
-material_t plane1_mat;
-pose_t     plane1_pose = {{0.0f,-1.1f,-1.2f}, {-0.258819,0.0,0.0,0.9659258}};
-tex_t vid1;
-
-//ground stereo cameras
-mesh_t     plane2_mesh;
-material_t plane2_mat;
-pose_t     plane2_pose = {{1.5f,-1.1f,-1.1f}, {-0.2521877,-0.3782815,0,0.8906764}};
-//pose_t     plane2_pose = {{0,-1.7f,-0.45f}, {-0.7071068,0,0,0.7071068}};
-tex_t vid2;
-
-//ground stereo cameras
-mesh_t     plane3_mesh;
-material_t plane3_mat;
-pose_t     plane3_pose = {{-1.5f,-1.1f,-1.1f}, {-0.2521877,0.3782815,0,0.8906764}};
-//pose_t     plane2_pose = {{0,-1.7f,-0.45f}, {-0.7071068,0,0,0.7071068}};
-tex_t vid3;
-
-
-//left window
-mesh_t     plane4_mesh;
-material_t plane4_mat;
-pose_t     plane4_pose = {{-2.2f,0.2f,0.3f}, {0.0,0.7071068,0.0,0.7071068}};
-tex_t vid4;
-
-
-//right window
-mesh_t     plane5_mesh;
-material_t plane5_mat;
-pose_t     plane5_pose = {{2.2f,0.2f,0.3f}, {0.0,-0.7071608,0.0,0.7071068}};
-tex_t      vid5;
-
-bool run_stab = false;
-bool gnd_cam_color = true;
+VideoContainer vsurfaces;
 
 //cubemap for skybox
 tex_t sky;
@@ -110,13 +68,15 @@ tex_t      hud_tex;
 //map screen
 mesh_t     plane6_mesh;
 material_t plane6_mat;
-pose_t     plane6_pose = {{-1.7f,1.0f,-1.99f}, {0,0,0,1}};
+//pose_t     plane6_pose = {{-1.5f,-1.1f,-1.1f}, {-0.258819,0.0,0.0,0.9659258}};
+//pose_t     plane6_pose = {{-1.7f,1.0f,-1.99f}, {0,0,0,1}};
+pose_t     plane6_pose = {{0,0,-0.01}, {0,0,0,1}};
 tex_t      vid6;
 double     map_zoom = 16;
 
 
 
-float p1s = 2.2f;
+float p1s = 2.0f;
 float p2s = 1.0f;
 float p3s = 1.0f;
 float pWs = 2.2f;

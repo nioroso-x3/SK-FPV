@@ -24,6 +24,7 @@ class stabilizer
     cv::Mat prevFrame;
     cv::Mat prevGray;
     cv::Mat m;
+    cv::Mat xform;
     cv::Mat X_estimate;
     cv::Mat P_estimate;
     cv::Mat lastRigidTransform;
@@ -31,6 +32,7 @@ class stabilizer
   public:
     stabilizer();
     void stabilize(cv::Mat &buf, float* rx, float* ry, float* ra);
+    void stabilize_i(cv::Mat &buf);
     cv::Mat getFrame(void);
     cv::Mat getPrevFrame(void);
     cv::Mat getStabFrame(void);

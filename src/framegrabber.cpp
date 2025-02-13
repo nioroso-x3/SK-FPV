@@ -1,0 +1,213 @@
+#include "framegrabber.h"
+
+
+FrameWriter::FrameWriter(){}
+FrameWriter::FrameWriter(std::string pipeline, tex_t &vid0, tex_t &vid1, bool stabilization, cv::Mat Km, cv::Mat Dm, float b, cv::Size corr_ori_r, int stype){
+    start(pipeline, vid0, vid1, stab, Km, Dm, b, corr_ori, stype);
+}
+void FrameWriter::play(){
+    playing = true;
+}
+void FrameWriter::start(std::string pipeline, tex_t &vid0, tex_t &vid1, bool stabilization, cv::Mat Km, cv::Mat Dm, float b, cv::Size corr_ori_r, int stype){
+    playing = true;
+    run = true;
+    stab = stabilization;
+    gst_pipeline = pipeline;
+    type = stype;
+    corr_ori = corr_ori_r;
+    K = Km;
+    D = Dm;
+    balance = b;
+    t = std::make_shared<std::thread>(&FrameWriter::stream, this, &vid0, &vid1);
+    t->detach();
+}
+
+
+void FrameWriter::stop(){
+   playing = false;
+}
+void FrameWriter::terminate(){
+   stop();
+   run = false;
+   std::this_thread::sleep_for(std::chrono::milliseconds(50));
+}
+
+void FrameWriter::toggleStab(){
+   stab = !stab;
+}
+
+void FrameWriter::stream(tex_t *vid0, tex_t *vid1){
+   cv::VideoCapture cap(gst_pipeline, cv::CAP_GSTREAMER);
+   cv::Mat img;
+   cv::Mat i1;
+   cv::Mat i2;
+   stabilizer stab0;
+   stabilizer stab1;
+   std::cout << "Starting pipeline:" << std::endl;
+   std::cout << "  " << gst_pipeline << std::endl;
+   while(cap.isOpened() && run){
+      if(!playing){
+         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+         continue;
+      }
+      cap.read(img);
+      //dual image
+      if (type == 1){
+          int w = img.cols;
+          int w2 = int(w/2);
+          int h = img.rows;
+          cv::Rect r1 = cv::Rect(0,0,w2,h);
+          cv::Rect r2 = cv::Rect(w2,0,w2,h);
+          i1 = img(r1).clone();
+          i2 = img(r2).clone();
+          // correct distortion
+          if (!K.empty() && !D.empty()){
+              std::future<cv::Mat> f1 = std::async(std::launch::async, undistortImage, i1.clone(), K, D, corr_ori, balance);
+              std::future<cv::Mat> f2 = std::async(std::launch::async, undistortImage, i2.clone(), K, D, corr_ori, balance);
+              i1 = f1.get();
+              i2 = f2.get();
+          }
+          if (stab){
+              std::thread t0(&stabilizer::stabilize_i, &stab0, std::ref(i1));
+              std::thread t1(&stabilizer::stabilize_i, &stab1, std::ref(i2));
+              t0.join();
+              t1.join();
+              std::future<cv::Mat> f1 = std::async(std::launch::async, &stabilizer::getStabFrame, &stab0);
+              std::future<cv::Mat> f2 = std::async(std::launch::async, &stabilizer::getStabFrame, &stab1);
+              i1 = f1.get();
+              i2 = f2.get();
+ 
+         }
+          
+          tex_set_colors(*vid0,i1.cols,i1.rows,(void*)i1.datastart);
+          tex_set_colors(*vid1,i2.cols,i2.rows,(void*)i2.datastart);
+
+      }
+      //single video
+      else{
+          // correct distortion
+          if (!K.empty() && !D.empty()){
+              img = undistortImage(img.clone(), K, D, corr_ori, balance);
+          }
+          if (stab){
+              stab0.stabilize_i(img);
+              img = stab0.getStabFrame();                  
+          }
+          tex_set_colors(*vid0,img.cols,img.rows,(void*)img.datastart);
+      }
+   }
+   cap.release();
+}
+
+FrameWriter::~FrameWriter(){
+    terminate();
+}
+
+VideoContainer::VideoContainer(){}
+VideoContainer::VideoContainer(std::string jsonpath){load_file(jsonpath);}
+VideoContainer::VideoContainer(nlohmann::json json){load_json(json);}
+
+void VideoContainer::add_surface(std::string name, float ratio, float scale, pose_t pose, bool transparent) {
+    //setup first screen, we generate a plane with 16:9 ratio
+    mesh_ts[name] = mesh_gen_plane({ratio*scale,scale},{0,0,1},{0,1,0});
+    material_ts[name] = material_copy_id(default_id_material_unlit);
+    pose_ts[name] = pose;
+    tex_ts[name] = tex_create(tex_type_image_nomips,tex_format_rgba32);
+
+    tex_set_address(tex_ts[name], tex_address_clamp);
+    material_set_texture(material_ts[name],"diffuse", tex_ts[name]);
+    if(transparent) material_set_transparency(material_ts[name],transparency_blend);
+}
+    
+void VideoContainer::del_surface(std::string name) {
+    if (frame_caps.find(name) != frame_caps.end()){
+      frame_caps[name].terminate();
+      frame_caps.erase(name);
+    }
+    std::string oname = name + std::string("_1");
+    mesh_ts.erase(name);
+    material_ts.erase(name);
+    pose_ts.erase(name);
+    tex_ts.erase(name);
+    mesh_ts.erase(oname);
+    material_ts.erase(oname);
+    pose_ts.erase(oname);
+    tex_ts.erase(oname);
+
+}
+    
+std::vector<std::string> VideoContainer::list_names() {
+    std::vector<std::string> keys;
+    for(auto iter = mesh_ts.begin(); iter != mesh_ts.end(); ++iter)
+    {
+        std::string k =  iter->first;
+        keys.push_back(k);
+    }
+    return keys;
+}
+    
+void VideoContainer::load_file(std::string jsonpath) {
+    std::ifstream file(jsonpath.c_str(),std::ifstream::in);
+    if (file.is_open()) {
+        nlohmann::json j;
+        file >> j;
+        load_json(j);
+    }
+}
+    
+void VideoContainer::load_json(nlohmann::json j) {
+    try {
+        for (auto& [name, obj_json] : j.items()) {
+            std::string oname = name + std::string("_1");
+            std::string pipeline = obj_json.at("pipeline").get<std::string>();
+            float aspect_ratio = obj_json.at("aspect_ratio").get<float>();
+            float scale = obj_json.at("scale").get<float>();
+            int stab = obj_json.at("stabilize").get<int>();
+            int type = obj_json.at("type").get<int>();
+            float balance = 0.0f;
+            cv::Size corr_ori;
+            if ((0 > type) && (type > 1)) continue; 
+            std::array<float, 3> pt0;
+            std::array<float, 4> pr0;
+            std::array<float, 3> pt1;
+            std::array<float, 4> pr1;
+            cv::Mat K;
+            cv::Mat D;
+            bool distorted = false;
+            if(obj_json.contains("K") && obj_json.contains("D") && obj_json.contains("balance") && obj_json.contains("corr_ori") ) distorted = true;
+            //pose
+            if (!obj_json.at("pose0").is_array() || obj_json.at("pose0").size() != 2)
+                continue;
+            pt0 = obj_json.at("pose0")[0].get<std::array<float, 3>>();
+            pr0 = obj_json.at("pose0")[1].get<std::array<float, 4>>();
+            if(distorted){
+              std::cout << "Distortion correction detected\n";
+              std::array<double, 9> Ka = obj_json.at("K").get<std::array<double,9>>();
+              std::array<double, 4> Da = obj_json.at("D").get<std::array<double,4>>();
+              K = cv::Mat(3,3,CV_64F,Ka.data()).clone();
+              D = cv::Mat(4,1,CV_64F,Da.data()).clone();
+              balance = obj_json.at("balance").get<float>();
+              std::array<int, 2> corr_ori_a = obj_json.at("corr_ori").get<std::array<int,2>>();
+              corr_ori = cv::Size(corr_ori_a[0],corr_ori_a[1]);
+            }
+            if (type == 1){
+            //pose1
+                if (!obj_json.at("pose1").is_array() || obj_json.at("pose1").size() != 2)
+                    continue;
+                pt1 = obj_json.at("pose1")[0].get<std::array<float, 3>>();
+                pr1 = obj_json.at("pose1")[1].get<std::array<float, 4>>();
+                pose_t pose = {{pt1[0],pt1[1],pt1[2]}, {pr1[0],pr1[1],pr1[2],pr1[3]}};
+                add_surface(oname, aspect_ratio, scale, pose, false);
+
+            }
+            pose_t pose = {{pt0[0],pt0[1],pt0[2]}, {pr0[0],pr0[1],pr0[2],pr0[3]}};
+            add_surface(name, aspect_ratio, scale, pose, false);
+            tex_t &t0 = tex_ts[name];
+            tex_t &t1 = type == 0 ? tex_ts[name] : tex_ts[oname];
+            frame_caps[name].start(pipeline, t0, t1, (bool)stab, K, D, balance, corr_ori, type); 
+        }
+    }
+    catch (const nlohmann::json::exception& e) {
+        std::cerr << "JSON parsing error: " << e.what() << std::endl;
+    }
+}
