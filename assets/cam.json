@@ -1,42 +1,42 @@
 {
         "front_cam": {
-            "pipeline": "udpsrc port=5600 caps=application/x-rtp ! queue ! rtph265depay ! h265parse ! vaapih265dec ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",
-            "aspect_ratio": 1.6,
-            "scale": 2.2,
+            "pipeline": "udpsrc port=5600 caps=application/x-rtp ! queue ! rtph265depay ! h265parse ! queue ! vaapih265dec ! queue ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",
+            "aspect_ratio": 1.7777,
+            "scale": 2.0,
             "type": 0,
-            "stabilize": 0,
+            "stabilize": 1,
             "pose0": [[0.0, 0.2, -2.0], [0.0, 0.0, 0.0, 1.0]]
 
         },
         "45deg_cam": {
-            "pipeline": "udpsrc port=5601 caps=application/x-rtp ! queue ! rtph265depay ! h265parse ! vaapih265dec ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",
-            "aspect_ratio": 1.333,
+            "pipeline": "udpsrc port=5601 caps=application/x-rtp ! queue ! rtph265depay ! h265parse ! queue ! vaapih265dec ! queue ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",
+            "aspect_ratio": 1.7777,
             "scale": 1.1,
             "type": 0,
-            "stabilize": 1,
-            "pose0": [[0.8, -1.3, -1.2], [-0.258819, 0.0, 0.0, 0.9659258]]
+            "stabilize": 0,
+            "pose0": [[1.0, -1.3, -1.2], [-0.258819, 0.0, 0.0, 0.9659258]]
 
         },
         "ground_cam": {
-            "pipeline": "udpsrc port=5602 caps=application/x-rtp ! queue ! rtph265depay ! h265parse ! vaapih265dec ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",
-            "aspect_ratio": 1.333,
+            "pipeline": "udpsrc port=5602 caps=application/x-rtp ! queue ! rtph265depay ! h265parse ! queue ! vaapih265dec ! queue ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",
+            "aspect_ratio": 1.7777,
             "scale": 1.1,
             "type": 0,
-            "stabilize": 1,
-            "pose0": [[-0.8, -1.3, -1.2], [-0.258819, 0.0, 0.0, 0.9659258]]
+            "stabilize": 0,
+            "pose0": [[-1.0, -1.3, -1.2], [-0.258819, 0.0, 0.0, 0.9659258]]
 
         },
          "side_cams": {
-            "pipeline": "udpsrc port=5603 caps=application/x-rtp ! queue ! rtph265depay ! h265parse ! vaapih265dec ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",
-            "aspect_ratio": 1.777,
+            "pipeline": "udpsrc port=5603 caps=application/x-rtp ! queue ! rtph265depay ! h265parse ! queue ! vaapih265dec ! queue ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",
+            "aspect_ratio": 1.7777,
             "scale": 2.2,
             "type": 1,
             "stabilize": 0,
-            "pose0": [[-1.8, 0.2, 0.1], [0.0, 0.7071068, 0.0, 0.7071068]],
-            "pose1": [[1.8, 0.2, 0.1], [0.0, -0.7071068, 0.0, 0.7071068]],
+            "pose0": [[-2.3, 0.4, 0.1], [0.2369531, 0.631875, -0.1579688, 0.7208558]],
+            "pose1": [[2.3, 0.4, 0.1], [0.2369531, -0.631875, 0.1579688, 0.7208558]],
             "K" : [430.8717763440679, 0.0, 621.5667829869741, 0.0, 439.8827339778281, 362.0940179823153, 0.0, 0.0, 1.0 ],
             "D" : [0.014132200676075771,  0.0866277275894948,  -0.12079661379707426,  0.041586276179513534],
-            "balance" : 0.75,
+            "balance" : 0.7,
             "corr_ori": [1280,720]
 
         }

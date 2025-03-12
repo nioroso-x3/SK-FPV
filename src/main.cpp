@@ -18,6 +18,13 @@ void scr_callback(color32* buffer, int w, int h, void *ctx){
     output << out;
 }
 
+std::string getUnixTimestampAsString() {
+    auto now = std::chrono::system_clock::now();
+    std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
+    std::string timestampString = std::to_string(currentTime);
+    return timestampString;
+}
+
 void mavlink_thread()
 {
   start_mavlink_thread();
@@ -51,7 +58,7 @@ void map_thread(){
   maps.add_icon(std::string("circle"),std::string("circle.png"));
   maps.add_icon(std::string("home"),std::string("home.png"));
   while(true){
-    cv::Mat output(1536,2048,CV_8UC4,cv::Scalar(0,0,0,0));
+    cv::Mat output(1440,1920,CV_8UC4,cv::Scalar(0,0,0,0));
     //set home in the map
     int home_set = maps.set_home(home_pos.latitude_deg,home_pos.longitude_deg);
     if (maps.get_map(&cur_loc,vh_pos.latitude_deg,vh_pos.longitude_deg,vh_att.yaw_deg,map_zoom) == 0){
@@ -89,28 +96,32 @@ int main(int argc, char* argv[]) {
   sk_settings_t settings = {};
 	
   settings.app_name           = "SK_FPV";
-	settings.assets_folder      = "Assets";
+	settings.assets_folder      = "";
 	settings.display_preference = display_mode_mixedreality;
 	
   if (!sk_init(settings))
 		return 1;
   
-  //setup map screen, 1:1 ratio
+  //setup map screen, 4:3 ratio
   plane6_mesh = mesh_gen_plane({1.333*0.78,1*0.78},{0,0,1},{0,1,0});
   plane6_mat = material_copy_id(default_id_material_unlit);
   vid6 = tex_create(tex_type_image_nomips,tex_format_rgba32);
   tex_set_address(vid6, tex_address_clamp);
 
-  //setup hud
+  //setup hud, 3:2 ratio
   hud_mesh = mesh_gen_plane({1.5f*hud_s,hud_s},{0,0,1},{0,1,0});
   hud_mat = material_copy_id(default_id_material_unlit);
   hud_tex = tex_create(tex_type_image_nomips,tex_format_rgba32);
   tex_set_address(hud_tex, tex_address_clamp);
 
   
-  //setup textures for map and hud
+  //configure textures for map
   material_set_texture(plane6_mat,"diffuse",vid6);
   material_set_transparency(plane6_mat,transparency_blend);
+  
+  //configure shader and textures for hud
+  shader_t hud_shader = shader_create_file("glow.hlsl");
+  material_set_shader(hud_mat,hud_shader);
   material_set_texture(hud_mat,"diffuse",hud_tex);
   material_set_transparency(hud_mat,transparency_blend);
 
@@ -119,10 +130,6 @@ int main(int argc, char* argv[]) {
   std::thread t5(&mavlink_thread);
   std::thread t6(&map_thread);
   std::thread t7(&wfbgs_thread);
-  t4.detach();
-  t5.detach();
-  t6.detach();
-  t7.detach();
  
   //hide hands, we are not using them right now.
   for (size_t h = 0; h < handed_max; h++) {
@@ -133,13 +140,11 @@ int main(int argc, char* argv[]) {
   render_set_cam_root(matrix_t({0,0,1.6}));
 
   //can also stream over network, just add a tee and udp rtp stream.
-  bool output_video = output.open("appsrc do-timestamp=true is-live=true ! queue leaky=1 ! videoconvert n-threads=2 ! videorate ! video/x-raw,format=NV12,framerate=30/1 ! "
-		                  "queue ! tee name=raw raw. ! "
-		                  "queue ! vaapivp9enc rate-control=2 bitrate=40000 keyframe-period=1 quality-level=7 ! vp9parse ! rtpvp9pay mtu=60000 ! multiudpsink clients=127.0.0.1:7600 raw. ! "
-				  "queue ! vaapivp9enc rate-control=2 bitrate=4000  keyframe-period=30 quality-level=7 ! vp9parse ! rtpvp9pay mtu=1400 ! multiudpsink clients=127.0.0.1:7601", 
-		                  //"queue ! vaapih264enc bitrate=25000 keyframe-period=60 rate-control=2 num-slices=4 ! h264parse config-interval=-1 ! rtph264pay mtu=1400 ! multiudpsink clients=127.0.0.1:7600 raw. ! "
-				  //"queue ! vaapih264enc bitrate=2500  keyframe-period=60 rate-control=2 num-slices=4 ! h264parse config-interval=-1 ! rtph264pay mtu=1400 ! multiudpsink clients=127.0.0.1:7601", 
-				  cv::CAP_GSTREAMER, 0, 30, cv::Size(1920,1080), true);
+  bool output_video = output.open("appsrc do-timestamp=true is-live=true ! queue leaky=1 ! videorate ! videoconvert n-threads=2 ! video/x-raw,format=NV12,framerate=30/1 ! "
+                                  "queue ! tee name=raw raw. ! "
+                                  "queue ! vaapih264enc bitrate=40000 keyframe-period=1 rate-control=2 ! h264parse config-interval=-1 ! rtph264pay mtu=65000 ! multiudpsink clients=127.0.0.1:7600,127.0.0.1:7601 sync=false raw. ! "
+                       				    "queue ! vaapih264enc bitrate=15000  keyframe-period=30 rate-control=2 ! h264parse config-interval=-1 ! mpegtsmux ! filesink location=./output_"+getUnixTimestampAsString()+".ts async=true sync=false", 
+				  cv::CAP_GSTREAMER, 0, 30, cv::Size(1600,900), true);
   if (!output_video) std::cout << "Output stream failed to start" << std::endl;
   //load video surfaces
   vsurfaces.load_file("./cam.json");
@@ -170,8 +175,8 @@ int main(int argc, char* argv[]) {
       ui_handle_end();
         
         //on cv1 around 54 degrees looks close to what is seen in the headset. you can play around with the resolution and fov.
-    if(cnt % 3 ==0)
-      render_screenshot_capture(&scr_callback, *input_head(), 1920, 1080, 54, tex_format_rgba32, NULL); 
+    if(cnt % 2 == 0)
+      render_screenshot_capture(&scr_callback, *input_head(), 1600, 900, 54, tex_format_rgba32, NULL); 
         
         //print some debug stuff if needed
     if(cnt % 100 == 0){
@@ -182,9 +187,5 @@ int main(int argc, char* argv[]) {
     }    
     cnt++;
   });
-  t4.join();
-  t5.join();
-  t6.join();
-  t7.join();
   return 0;
 }

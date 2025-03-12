@@ -8,8 +8,6 @@
 using namespace sk;
 using namespace mavsdk;
 
-#define HUD_h 800
-#define HUD_w ((int)HUD_h*1.5)
 
 std::string 
 deci(float i,int p){
@@ -17,7 +15,6 @@ deci(float i,int p){
   s << std::fixed << std::setprecision(p) << i;
   return s.str();
 }
-
 
 void drawHeading(Cairo::RefPtr<Cairo::Context> cr, 
                  float x, 
@@ -434,8 +431,8 @@ void drawStatusMsg(const Cairo::RefPtr<Cairo::Context>& cr, float x, float y, st
     status_counter--;
     cr->set_font_size(40);
     cr->move_to(x,y);
-    cr->show_text("COM->");
-    cr->move_to(x+110,y);
+    cr->show_text("MSG->");
+    cr->move_to(x+(HUD_w*0.1375),y);
     cr->show_text(msg);
   }
   cr->restore();
@@ -587,7 +584,7 @@ void draw_cairo_hud()
 
     //set font seize
     cr->select_font_face("@cairo:monospace",Cairo::FONT_SLANT_NORMAL,Cairo::FONT_WEIGHT_BOLD);
-    cr->set_font_size(24.0);
+    cr->set_font_size(24.5);
     
     //clear canvas
     cr->save();
@@ -596,8 +593,8 @@ void draw_cairo_hud()
     cr->paint();    // fill image with the color
     cr->restore();
     //set line and color
-    cr->set_source_rgba(0.3, 1.0, 0.3, 0.95);
-    cr->set_line_width(4.5);
+    cr->set_source_rgba(1.0f, 1.0f, 1.0f, 0.94f);
+    cr->set_line_width(4.8);
 
     //begin drawing elements
     //drawFlightPath(cr,HUD_w/2.0,HUD_h/2.0); need to figure out how to calculate the projection to the hud
@@ -643,9 +640,9 @@ void draw_cairo_hud()
     }
 
     cr->restore(); // Restore the initial state
-    //write data to hud texture
+    //write data to hud texture at 50 fps
     tex_set_colors(hud_tex,HUD_w,HUD_h,(void*)surface->get_data());
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
   }
 }
 

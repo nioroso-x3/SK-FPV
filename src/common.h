@@ -15,8 +15,6 @@
 #include <map>
 #include "framegrabber.h"
 
-#define HUD_COLOR cv::Scalar(0,255,0,200)
-#define HUD_COLOR_CLR cv::Scalar(0,0,0,0)
 using namespace mavsdk;
 using namespace sk;
 
