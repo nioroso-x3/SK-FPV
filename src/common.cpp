@@ -135,6 +135,9 @@ std::map<std::string,std::vector<int>> wfb_rx;
 
 uint64_t gps_time = 0;
 
+int cam_selector = 0;
+
+
 float get_heading(float lon1, float lat1, float lon2, float lat2) {
     lon1 *= M_PI/180.0;
     lon2 *= M_PI/180.0;

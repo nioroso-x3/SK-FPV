@@ -107,6 +107,9 @@ extern Telemetry::DistanceSensor vh_rngfnd;
 //gps time
 extern uint64_t gps_time;
 
+//main camera selector
+extern int cam_selector;
+
 //ground station rx stream stats
 extern std::map<std::string,std::vector<int>> wfb_rx; 
 

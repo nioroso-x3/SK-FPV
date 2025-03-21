@@ -60,22 +60,13 @@ void FrameWriter::stream(tex_t *vid0, tex_t *vid1){
           cv::Rect r2 = cv::Rect(w2,0,w2,h);
           i1 = img(r1).clone();
           i2 = img(r2).clone();
-          // correct distortion
-          if (!K.empty() && !D.empty()){
-              std::future<cv::Mat> f1 = std::async(std::launch::async, undistortImage, i1.clone(), K, D, corr_ori, balance);
-              std::future<cv::Mat> f2 = std::async(std::launch::async, undistortImage, i2.clone(), K, D, corr_ori, balance);
-              i1 = f1.get();
-              i2 = f2.get();
-          }
           if (stab){
               std::thread t0(&stabilizer::stabilize_i, &stab0, std::ref(i1));
-              std::thread t1(&stabilizer::stabilize_i, &stab1, std::ref(i2));
+              stab1.stabilize_i(i2);
               t0.join();
-              t1.join();
               std::future<cv::Mat> f1 = std::async(std::launch::async, &stabilizer::getStabFrame, &stab0);
-              std::future<cv::Mat> f2 = std::async(std::launch::async, &stabilizer::getStabFrame, &stab1);
+              i2 = stab1.getStabFrame();
               i1 = f1.get();
-              i2 = f2.get();
  
          }
           
@@ -85,10 +76,6 @@ void FrameWriter::stream(tex_t *vid0, tex_t *vid1){
       }
       //single video
       else{
-          // correct distortion
-          if (!K.empty() && !D.empty()){
-              img = undistortImage(img.clone(), K, D, corr_ori, balance);
-          }
           if (stab){
               stab0.stabilize_i(img);
               img = stab0.getStabFrame();                  
@@ -112,13 +99,54 @@ void VideoContainer::add_surface(std::string name, float ratio, float scale, pos
     mesh_ts[name] = mesh_gen_plane({ratio*scale,scale},{0,0,1},{0,1,0});
     material_ts[name] = material_copy_id(default_id_material_unlit);
     pose_ts[name] = pose;
-    tex_ts[name] = tex_create(tex_type_image_nomips,tex_format_rgba32);
+    tex_ts[name] = tex_create(tex_type_image_nomips | tex_type_dynamic, tex_format_rgba32);
 
     tex_set_address(tex_ts[name], tex_address_clamp);
     material_set_texture(material_ts[name],"diffuse", tex_ts[name]);
     if(transparent) material_set_transparency(material_ts[name],transparency_blend);
 }
+
+void VideoContainer::add_undistortion_shader(std::string name, const cv::Mat K, const cv::Mat D, const cv::Size imageSize, double balance){
+    //load the shader
+    shader_t undistort = shader_create_file("undistort.hlsl");
+    material_set_shader(material_ts[name], undistort);
+    shader_release(undistort);
+                                  
+    //calculate the transform matrix
+    cv::Mat map1, map2;
+    precomputeUndistortMaps(K, D, imageSize, balance, map1, map2);
+    //normalize
+    map1 = map1 / map1.cols; 
+    map2 = map2 / map2.rows;
     
+    //clamp
+    map1 = cv::max(map1,0.0f);
+    map1 = cv::min(map1,1.0f);
+
+    map2 = cv::max(map2,0.0f);
+    map2 = cv::min(map2,1.0f);
+
+    //Create the lookup textures
+    std::string fx = name + std::string("_distx");
+    std::string fy = name + std::string("_disty");
+  
+    tex_ts[fx] = tex_create(tex_type_image_nomips, tex_format_r32);
+    tex_ts[fy] = tex_create(tex_type_image_nomips, tex_format_r32);
+    
+    //Configure the textures
+    tex_set_address(tex_ts[fx], tex_address_clamp);
+    tex_set_address(tex_ts[fy], tex_address_clamp);
+        
+    //Bind the textures to the shader
+    material_set_texture(material_ts[name],"mapX",tex_ts[fx]);
+    material_set_texture(material_ts[name],"mapY",tex_ts[fy]);
+        
+    //Write the transformation matrixes to the respective lookup textures.
+    tex_set_colors(tex_ts[fx],map1.cols,map1.rows,(void*)map1.datastart);
+    tex_set_colors(tex_ts[fy],map2.cols,map2.rows,(void*)map2.datastart);
+      
+}     
+
 void VideoContainer::del_surface(std::string name) {
     if (frame_caps.find(name) != frame_caps.end()){
       frame_caps[name].terminate();
@@ -181,17 +209,17 @@ void VideoContainer::load_json(nlohmann::json j) {
             pt0 = obj_json.at("pose0")[0].get<std::array<float, 3>>();
             pr0 = obj_json.at("pose0")[1].get<std::array<float, 4>>();
             if(distorted){
-              std::cout << "Distortion correction detected\n";
-              std::array<double, 9> Ka = obj_json.at("K").get<std::array<double,9>>();
-              std::array<double, 4> Da = obj_json.at("D").get<std::array<double,4>>();
-              K = cv::Mat(3,3,CV_64F,Ka.data()).clone();
-              D = cv::Mat(4,1,CV_64F,Da.data()).clone();
-              balance = obj_json.at("balance").get<float>();
-              std::array<int, 2> corr_ori_a = obj_json.at("corr_ori").get<std::array<int,2>>();
-              corr_ori = cv::Size(corr_ori_a[0],corr_ori_a[1]);
+                std::cout << "Distortion correction detected\n";
+                std::array<double, 9> Ka = obj_json.at("K").get<std::array<double,9>>();
+                std::array<double, 4> Da = obj_json.at("D").get<std::array<double,4>>();
+                K = cv::Mat(3,3,CV_64F,Ka.data()).clone();
+                D = cv::Mat(4,1,CV_64F,Da.data()).clone();
+                balance = obj_json.at("balance").get<float>();
+                std::array<int, 2> corr_ori_a = obj_json.at("corr_ori").get<std::array<int,2>>();
+                corr_ori = cv::Size(corr_ori_a[0],corr_ori_a[1]);
             }
             if (type == 1){
-            //pose1
+                //pose1
                 if (!obj_json.at("pose1").is_array() || obj_json.at("pose1").size() != 2)
                     continue;
                 pt1 = obj_json.at("pose1")[0].get<std::array<float, 3>>();
@@ -204,7 +232,13 @@ void VideoContainer::load_json(nlohmann::json j) {
             add_surface(name, aspect_ratio, scale, pose, false);
             tex_t &t0 = tex_ts[name];
             tex_t &t1 = type == 0 ? tex_ts[name] : tex_ts[oname];
-            frame_caps[name].start(pipeline, t0, t1, (bool)stab, K, D, balance, corr_ori, type); 
+            //disable stabilization, we have to build a shader that does all transformations first...
+            if(distorted){
+                stab = false;
+                add_undistortion_shader(name, K, D, corr_ori, balance);
+                if(type==1) add_undistortion_shader(oname, K, D, corr_ori, balance);
+            }
+            frame_caps[name].start(pipeline, t0, t1, (bool)stab, K, D, balance, corr_ori, type);
         }
     }
     catch (const nlohmann::json::exception& e) {

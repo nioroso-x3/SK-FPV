@@ -1,5 +1,19 @@
 #include "fisheye.h"
 
+void precomputeUndistortMaps(const cv::Mat& K, const cv::Mat& D, const cv::Size& imageSize, double balance, cv::Mat& map1, cv::Mat& map2) {
+    // Estimate the new camera matrix for undistortion
+    cv::Mat new_K;
+    cv::fisheye::estimateNewCameraMatrixForUndistortRectify(
+        K, D, imageSize, cv::Matx33d::eye(), new_K, balance
+    );
+    
+    // Initialize the undistort rectify map
+    cv::fisheye::initUndistortRectifyMap(
+       K, D, cv::Matx33d::eye(), new_K, imageSize, CV_32FC1, map1, map2
+    );
+}   
+
+
 cv::Mat undistortImage(const cv::Mat& distorted, cv::Mat K, cv::Mat D, cv::Size corr_ori, double balance )
 {
 

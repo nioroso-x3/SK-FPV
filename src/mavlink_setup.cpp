@@ -3,18 +3,19 @@ using namespace mavsdk;
 
 void start_mavlink_thread(){
   bool found_wfb = false;
-  std::cerr << "Started mavlink setup thread" << std::endl;
+  std::cerr << "MAVLINK: Started mavlink setup thread" << std::endl;
   Mavsdk mavsdk{Mavsdk::Configuration{Mavsdk::ComponentType::GroundStation}};
   ConnectionResult connection_result = mavsdk.add_any_connection("udp://0.0.0.0:14551");
 
   if (connection_result != ConnectionResult::Success) {
-      std::cerr << "Connection failed: " << connection_result << '\n';
+      std::cerr << "MAVLINK: Connection failed: " << connection_result << '\n';
   }
 
   auto system = mavsdk.first_autopilot(3.0);
   while(!system) {
-      std::cerr << "Connection timeout, waiting 30 seconds " << std::endl;
-      system = mavsdk.first_autopilot(30.0);
+      std::cerr << "MAVLINK: connection timeout, waiting 10 seconds." << std::endl;
+      system = mavsdk.first_autopilot(3.0);
+      std::this_thread::sleep_for(std::chrono::milliseconds(10000));
   }
 
 
@@ -123,7 +124,18 @@ void start_mavlink_thread(){
       wfb_flags = mavlink_msg_radio_status_get_remnoise(&msg);
     }
   });
+  /*
+  auto ps1 = mavsdk::MavlinkPassthrough{systems[0]};
+  ps1.subscribe_message(MAVLINK_MSG_ID_RC_CHANNELS,[](const mavlink_message_t &msg){
+    mavlink_rc_channels_t *rc_channels;
+    mavlink_msg_rc_channels_decode(&msg,rc_channels);
+    if (rc_channels->chancount >= 12){
+      cam_selector = rc_channels->chan7_raw; 
+      std::cout << "Channel 7: " << cam_selector << std::endl;
+    }
 
+  });
+  */
   while(true){
 /*    std::cout << int(wfb_rssi) << std::endl;
     std::cout << int(wfb_errors) << std::endl;

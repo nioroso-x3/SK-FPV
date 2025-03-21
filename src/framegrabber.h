@@ -56,8 +56,8 @@ class VideoContainer{
     std::map<std::string,pose_t>      pose_ts;
     std::map<std::string,tex_t>       tex_ts;
     std::map<std::string,FrameWriter> frame_caps;
-
     void add_surface(std::string name, float ratio, float scale, pose_t pose, bool transparent);
+    void add_undistortion_shader(std::string name, const cv::Mat K, const cv::Mat D, const cv::Size imageSize, double balance);
     void del_surface(std::string name);
     std::vector<std::string> list_names();
     void load_file(std::string jsonpath);

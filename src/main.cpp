@@ -82,7 +82,8 @@ void wfbgs_thread(){
 
     int openres =  wfb.open("127.0.0.1",8003);
     if (openres != 0){
-      std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+      std::cerr << "WFB: Waiting 10 seconds" << std::endl;
+      std::this_thread::sleep_for(std::chrono::milliseconds(10000));
       continue; 
     }
     wfb.start(wfb_rx);
@@ -103,7 +104,7 @@ int main(int argc, char* argv[]) {
 		return 1;
   
   //setup map screen, 4:3 ratio
-  plane6_mesh = mesh_gen_plane({1.333*0.78,1*0.78},{0,0,1},{0,1,0});
+  plane6_mesh = mesh_gen_plane({1.333f*0.78f,0.78f},{0,0,1},{0,1,0});
   plane6_mat = material_copy_id(default_id_material_unlit);
   vid6 = tex_create(tex_type_image_nomips,tex_format_rgba32);
   tex_set_address(vid6, tex_address_clamp);
@@ -120,8 +121,9 @@ int main(int argc, char* argv[]) {
   material_set_transparency(plane6_mat,transparency_blend);
   
   //configure shader and textures for hud
-  shader_t hud_shader = shader_create_file("glow.hlsl");
+  shader_t hud_shader = shader_create_file("shadow.hlsl");
   material_set_shader(hud_mat,hud_shader);
+  shader_release(hud_shader);
   material_set_texture(hud_mat,"diffuse",hud_tex);
   material_set_transparency(hud_mat,transparency_blend);
 
@@ -144,7 +146,7 @@ int main(int argc, char* argv[]) {
                                   "queue ! tee name=raw raw. ! "
                                   "queue ! vaapih264enc bitrate=40000 keyframe-period=1 rate-control=2 ! h264parse config-interval=-1 ! rtph264pay mtu=65000 ! multiudpsink clients=127.0.0.1:7600,127.0.0.1:7601 sync=false raw. ! "
                        				    "queue ! vaapih264enc bitrate=15000  keyframe-period=30 rate-control=2 ! h264parse config-interval=-1 ! mpegtsmux ! filesink location=./output_"+getUnixTimestampAsString()+".ts async=true sync=false", 
-				  cv::CAP_GSTREAMER, 0, 30, cv::Size(1600,900), true);
+				  cv::CAP_GSTREAMER, 0, 30, cv::Size(1536,864), true);
   if (!output_video) std::cout << "Output stream failed to start" << std::endl;
   //load video surfaces
   vsurfaces.load_file("./cam.json");
@@ -176,7 +178,7 @@ int main(int argc, char* argv[]) {
         
         //on cv1 around 54 degrees looks close to what is seen in the headset. you can play around with the resolution and fov.
     if(cnt % 2 == 0)
-      render_screenshot_capture(&scr_callback, *input_head(), 1600, 900, 54, tex_format_rgba32, NULL); 
+      render_screenshot_capture(&scr_callback, *input_head(), 1536, 864, 54, tex_format_rgba32, NULL); 
         
         //print some debug stuff if needed
     if(cnt % 100 == 0){

@@ -8,7 +8,7 @@ int wfb_stats::open(const char* host, int port){
     // Create a socket
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
-        std::cerr << "Error creating socket." << std::endl;
+        std::cerr << "WFB: Error creating socket." << std::endl;
         sock = -1;
         return -1;
     }
@@ -19,19 +19,19 @@ int wfb_stats::open(const char* host, int port){
     server_address.sin_port = htons(port);
 
     if (inet_pton(AF_INET, host, &server_address.sin_addr) <= 0) {
-        std::cerr << "Invalid address/ Address not supported" << std::endl;
+        std::cerr << "WFB: Invalid address/ Address not supported" << std::endl;
         sock = -1;
         return -2;
     }
 
     // Connect to the server
     if (connect(sock, (struct sockaddr*)&server_address, sizeof(server_address)) < 0) {
-        std::cerr << "Connection failed." << std::endl;
+        std::cerr << "WFB: Connection failed." << std::endl;
         sock = -1;
         return -3;
     }
 
-    std::cout << "Connected to wfb: " << host << ":" << port << std::endl;
+    std::cout << "WFB: Connected to wfb " << host << ":" << port << std::endl;
     return 0;
 
 }
@@ -121,7 +121,7 @@ int wfb_stats::start(std::map<std::string,std::vector<int>> &wfb_rx){
         uint32_t length;
         ssize_t bytes_received = recv_fixed(sock, reinterpret_cast<char*>(&length), sizeof(length));
         if (bytes_received <= 0) {
-            std::cerr << "Error receiving length or connection closed." << std::endl;
+            std::cerr << "WFB: Error receiving length or connection closed." << std::endl;
             return -1;
         }
 
@@ -130,7 +130,7 @@ int wfb_stats::start(std::map<std::string,std::vector<int>> &wfb_rx){
 
         // Validate message length
         if (length > WFB_BUFFER_SIZE) {
-            std::cerr << "Received message length is too large: " << length << " bytes." << std::endl;
+            std::cerr << "WFB: Received message length is too large: " << length << " bytes." << std::endl;
             continue;
         }
 
@@ -138,7 +138,7 @@ int wfb_stats::start(std::map<std::string,std::vector<int>> &wfb_rx){
         char* message = new char[length + 1];
         bytes_received = recv_fixed(sock, message, length);
         if (bytes_received <= 0) {
-            std::cerr << "Error receiving message or connection closed." << std::endl;
+            std::cerr << "WFB: Error receiving message or connection closed." << std::endl;
             delete[] message;
             continue;
         }
