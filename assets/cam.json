@@ -1,24 +1,24 @@
 {
         "front_cam": {
-            "pipeline": "udpsrc port=5600 caps=application/x-rtp ! queue ! rtph265depay ! h265parse ! queue ! vaapih265dec ! queue ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",
+            "pipeline": "udpsrc port=5600 caps=application/x-rtp ! queue ! rtpjitterbuffer latency=20 ! rtph265depay ! h265parse ! queue ! vaapih265dec ! queue ! videoconvert n-threads=2 ! video/x-raw,format=RGBA ! appsink max-buffers=2 drop=true sync=false",
             "aspect_ratio": 1.7777,
             "scale": 2.0,
             "type": 0,
-            "stabilize": 1,
+            "stabilize": 0,
             "pose0": [[0.0, 0.2, -2.0], [0.0, 0.0, 0.0, 1.0]]
 
         },
         "45deg_cam": {
-            "pipeline": "udpsrc port=5601 caps=application/x-rtp ! queue ! rtph265depay ! h265parse ! queue ! vaapih265dec ! queue ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",
+            "pipeline": "udpsrc port=5601 caps=application/x-rtp ! queue ! rtpjitterbuffer latency=20 ! rtph265depay ! h265parse ! queue ! vaapih265dec ! queue ! videoconvert n-threads=2 ! video/x-raw,format=RGBA ! appsink max-buffers=2 drop=true sync=false",
             "aspect_ratio": 1.7777,
             "scale": 1.1,
             "type": 0,
-            "stabilize": 0,
+            "stabilize": 1,
             "pose0": [[1.0, -1.3, -1.2], [-0.258819, 0.0, 0.0, 0.9659258]]
 
         },
         "ground_cam": {
-            "pipeline": "udpsrc port=5602 caps=application/x-rtp ! queue ! rtph265depay ! h265parse ! queue ! vaapih265dec ! queue ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",
+            "pipeline": "udpsrc port=5602 caps=application/x-rtp ! queue ! rtpjitterbuffer latency=20 ! rtph265depay ! h265parse ! queue ! vaapih265dec ! queue ! videoconvert n-threads=2 ! video/x-raw,format=RGBA ! appsink max-buffers=2 drop=true sync=false",
             "aspect_ratio": 1.7777,
             "scale": 1.1,
             "type": 0,
@@ -27,7 +27,7 @@
 
         },
          "side_cams": {
-            "pipeline": "udpsrc port=5603 caps=application/x-rtp ! queue ! rtph265depay ! h265parse ! queue ! vaapih265dec ! queue ! videoconvert ! video/x-raw,format=RGBA ! appsink max-buffers=1 drop=true sync=false",
+            "pipeline": "udpsrc port=5603 caps=application/x-rtp ! queue ! rtpjitterbuffer latency=20 ! rtph265depay ! h265parse ! queue ! vaapih265dec ! queue ! videoconvert n-threads=2 ! video/x-raw,format=RGBA ! appsink max-buffers=2 drop=true sync=false",
             "aspect_ratio": 1.7777,
             "scale": 2.2,
             "type": 1,
