@@ -144,9 +144,9 @@ int main(int argc, char* argv[]) {
   //can also stream over network, just add a tee and udp rtp stream.
   bool output_video = output.open("appsrc do-timestamp=true is-live=true ! queue leaky=1 ! videorate ! videoconvert n-threads=2 ! video/x-raw,format=NV12,framerate=30/1 ! "
                                   "queue ! tee name=raw raw. ! "
-                                  "queue ! vaapih264enc bitrate=40000 keyframe-period=1 rate-control=2 ! h264parse config-interval=-1 ! rtph264pay mtu=65000 ! multiudpsink clients=127.0.0.1:7600,127.0.0.1:7601 sync=false raw. ! "
-                       				    "queue ! vaapih264enc bitrate=15000  keyframe-period=30 rate-control=2 ! h264parse config-interval=-1 ! mpegtsmux ! filesink location=./output_"+getUnixTimestampAsString()+".ts async=true sync=false", 
-				  cv::CAP_GSTREAMER, 0, 30, cv::Size(1536,864), true);
+                                  "queue ! vaapih264enc bitrate=40000 keyframe-period=1 ! h264parse config-interval=-1 ! rtph264pay mtu=65000 ! multiudpsink clients=127.0.0.1:7600,127.0.0.1:7601 sync=false raw. ! "
+                       				    "queue ! vaapih264enc bitrate=15000  keyframe-period=30 ! h264parse config-interval=-1 ! mpegtsmux ! filesink location=./output_"+getUnixTimestampAsString()+".ts async=true sync=false", 
+				  cv::CAP_GSTREAMER, 0, 30, cv::Size(1280,720), true);
   if (!output_video) std::cout << "Output stream failed to start" << std::endl;
   //load video surfaces
   vsurfaces.load_file("./cam.json");
@@ -177,8 +177,8 @@ int main(int argc, char* argv[]) {
       ui_handle_end();
         
         //on cv1 around 54 degrees looks close to what is seen in the headset. you can play around with the resolution and fov.
-    if(cnt % 2 == 0)
-      render_screenshot_capture(&scr_callback, *input_head(), 1536, 864, 54, tex_format_rgba32, NULL); 
+    if(cnt % 3 == 0)
+      render_screenshot_capture(&scr_callback, *input_head(), 1280, 720, 54, tex_format_rgba32, NULL); 
         
         //print some debug stuff if needed
     if(cnt % 100 == 0){

@@ -81,6 +81,7 @@ void FrameWriter::stream(tex_t *vid0, tex_t *vid1){
               img = stab0.getStabFrame();                  
           }
           tex_set_colors(*vid0,img.cols,img.rows,(void*)img.datastart);
+
       }
    }
    cap.release();
@@ -115,17 +116,11 @@ void VideoContainer::add_undistortion_shader(std::string name, const cv::Mat K, 
     //calculate the transform matrix
     cv::Mat map1, map2;
     precomputeUndistortMaps(K, D, imageSize, balance, map1, map2);
-    //normalize
-    map1 = map1 / map1.cols; 
-    map2 = map2 / map2.rows;
     
-    //clamp
-    map1 = cv::max(map1,0.0f);
-    map1 = cv::min(map1,1.0f);
-
-    map2 = cv::max(map2,0.0f);
-    map2 = cv::min(map2,1.0f);
-
+    //normalize
+    map1 = map1 / (map1.cols-1); 
+    map2 = map2 / (map2.rows-1);
+    
     //Create the lookup textures
     std::string fx = name + std::string("_distx");
     std::string fy = name + std::string("_disty");

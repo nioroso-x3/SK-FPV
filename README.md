@@ -12,7 +12,7 @@ The maps require a "style.json" file to load the map styles, I included a sample
 
 Copy everything in the "assets" folder to the same folder where the binary is.
 
-The headset output is transmitted as a 40mbps intra-only VP9 rtp stream on port 7600 and a 4mbps lower quality stream on port 7601.
+The headset output is transmitted as a 40mbps intra-only H264 rtp stream on port 7600 and a 4mbps lower quality stream on port 7601.
 
 ## Linux pre-requisites
 
@@ -22,7 +22,7 @@ Linux users will need to install some pre-requisites for this template to compil
 
 * OpenCV with gstreamer, Ubuntu 24.10 has it enabled by default
 
-* MAVSDK 2.x https://github.com/mavlink/MAVSDK. You will have to comment out the if block in mavsdk_impl.cpp that excludes telemetry radio data for WFB telemetry to work.
+* MAVSDK 2.x https://github.com/mavlink/MAVSDK.
 
 * libcairomm-1.0 for the HUD
 

@@ -109,3 +109,4 @@ target_link_libraries( SK_FPV
   ${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native/build/libmbgl-vendor-sqlite.a 
   
 )
+

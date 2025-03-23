@@ -14,8 +14,6 @@ SamplerState diffuse_s : register(s0);
 Texture2D mapX : register(t1);
 Texture2D mapY : register(t2);
 
-SamplerState mapX_s : register(s1);
-SamplerState mapY_s : register(s2);
 
 struct vsIn {
 float4 pos : SV_Position;
@@ -45,11 +43,12 @@ return o;
 }
 
 float4 ps(psIn input) : SV_TARGET {
-float new_u = mapX.Sample(mapX_s, input.uv).r;
-float new_v = mapY.Sample(mapY_s, input.uv).r;
+float new_u = mapX.Sample(diffuse_s, input.uv).r;
+float new_v = mapY.Sample(diffuse_s, input.uv).r;
 
 float2 remap_uv = float2(new_u, new_v);
-
+if (new_u < 0.0 || new_u > 1.0 || new_v < 0.0 || new_v > 1.0)
+    return float4(0, 0, 0, 1); // Black fill for out-of-bounds areas
 return diffuse.Sample(diffuse_s, remap_uv) * input.color;
 }
 
