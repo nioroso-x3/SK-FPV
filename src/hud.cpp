@@ -529,6 +529,26 @@ void drawDateTime(const Cairo::RefPtr<Cairo::Context>& cr, float x, float y, uin
   drawLabel(cr, x+16, y+24, std::string(tbuffer),size);
 }
 
+void drawLTERadio(const Cairo::RefPtr<Cairo::Context>& cr, float x, float y, uint8_t s, uint8_t fr, uint8_t t, uint8_t q){
+    std::string label("UNK");
+    if (t == 1) label = std::string("GSM");
+    if (t == 2) label = std::string("CDM");
+    if (t == 3) label = std::string("WCD");
+    if (t == 4) label = std::string("LTE");
+    int s_perc = -1;
+    if (q < 255) s_perc = int(100 * (q/254.0));
+    if (s == 12){
+       drawSimpleLabel(cr,x,y, label + std::string("%"), s_perc, 0, 30.0f);
+    }
+    else{
+       drawSimpleLabel(cr,x,y, label + std::to_string(s), fr, 0, 30.0f);
+    }
+
+
+
+
+}
+
 void draw_cairo_hud()
 {
   
@@ -563,9 +583,15 @@ void draw_cairo_hud()
     int n_sats = vh_gpsi.num_satellites; 
     std::string mode = vh_fmode;
     float radio_rssi = wfb_rssi;
-    float rc_pct = std::isnan(vh_rc.signal_strength_percent) ? 0.0 : 100*vh_rc.signal_strength_percent/255;
+    float rc_pct = std::isnan(vh_rc.signal_strength_percent) ? 0.0 : 100*vh_rc.signal_strength_percent/254;
     float rngfnd = std::isnan(vh_rngfnd.current_distance_m) ? 0.0 : vh_rngfnd.current_distance_m;
-    int wfb_rx_avg_rssi = 0;
+    uint8_t c_lte_stat = lte_stat;
+    uint8_t c_lte_f_reason = lte_f_reason;
+    uint8_t c_lte_type = lte_type;
+    uint8_t c_lte_qual = lte_qual;
+   
+
+    /*int wfb_rx_avg_rssi = 0;
     int video_streams = 0;
     //calculate average rssi
     for(const auto& pair : wfb_rx){
@@ -579,7 +605,7 @@ void draw_cairo_hud()
        }
     }
     if (video_streams != 0)
-    wfb_rx_avg_rssi /= video_streams;
+    wfb_rx_avg_rssi /= video_streams;*/
 
 
     //set font seize
@@ -608,13 +634,13 @@ void draw_cairo_hud()
     drawBatteryStatus(cr,(HUD_w/4),(HUD_h/12)*11,v0,a0);
     drawLabel(cr,0,(HUD_h/32)*24,mode,32);
     drawStatusMsg(cr,(HUD_w/16),(HUD_h/10)*8,lastMsg);
-    drawSimpleLabel(cr,(HUD_w/32)*27,(HUD_h/32)*12,"WFB TX",radio_rssi,0,30.0f);
-    drawSimpleLabel(cr,(HUD_w/32)*27,(HUD_h/32)*13,"RADIO%",rc_pct,0,30.0f);
-    drawSimpleLabel(cr, (HUD_w/32)*27, (HUD_h/2.0)+50,"RNGFND",rngfnd,1,30.0f);
+    drawLTERadio(cr,(HUD_w/32)*27,(HUD_h/32)*12,c_lte_stat, c_lte_f_reason, c_lte_type, c_lte_qual);
+    drawSimpleLabel(cr,(HUD_w/32)*27,(HUD_h/32)*13,"WFB",radio_rssi,0,30.0f);
+    drawSimpleLabel(cr,(HUD_w/32)*27,(HUD_h/32)*14,"RC%",rc_pct,0,30.0f);
+    drawSimpleLabel(cr, (HUD_w/32)*27, (HUD_h/2.0)+50,"RFALT",rngfnd,1,30.0f);
     drawSimpleLabel(cr,(HUD_w/32)*28,(HUD_h/2)+100,"HOME",home_d,0,30.0f);
     drawHomeDirection(cr, (HUD_w/32)*27+16,(HUD_h/2)+90,home_h,5);
     drawDateTime(cr, (HUD_w/32)*12, (HUD_h/32)*31, gps_time, 30.0f);
-    drawSimpleLabel(cr,(HUD_w/32)*27,(HUD_h/2)+150,"WFB RX",wfb_rx_avg_rssi,0,30.0f);
    
     //translating, rolling and centering the canvas for the pitch ladder.
     cr->translate(HUD_w/2.0,HUD_h/2.0);

@@ -94,6 +94,11 @@ extern std::string vh_fmode;
 //home position
 extern Telemetry::Position home_pos;
 
+//lte
+extern uint8_t lte_stat;
+extern uint8_t lte_f_reason;
+extern uint8_t lte_type;
+extern uint8_t lte_qual;
 
 //wfb mavlink stream statistics
 extern int8_t wfb_rssi; //WFB rssi

@@ -123,16 +123,25 @@ std::string vh_fmode = "UNKNOWN";
 //home position
 Telemetry::Position home_pos;
 
+//lte
+uint8_t lte_stat = 0;
+uint8_t lte_f_reason = 0;
+uint8_t lte_type = 0;
+uint8_t lte_qual = 0;
 
+//wfb mavlink
 int8_t wfb_rssi = 0;
 uint16_t wfb_errors = 0;
 uint16_t wfb_fec_fixed = 0;
 int8_t wfb_flags = 0;
 
+//rangefinder
 Telemetry::DistanceSensor vh_rngfnd;
 
+//unused
 std::map<std::string,std::vector<int>> wfb_rx; 
 
+//drone time
 uint64_t gps_time = 0;
 
 int cam_selector = 0;

@@ -124,6 +124,16 @@ void start_mavlink_thread(){
       wfb_flags = mavlink_msg_radio_status_get_remnoise(&msg);
     }
   });
+  
+  
+  ps.subscribe_message(MAVLINK_MSG_ID_CELLULAR_STATUS,[](const mavlink_message_t &msg){
+    lte_stat = (uint8_t)mavlink_msg_cellular_status_get_status(&msg);
+    lte_f_reason = (uint8_t)mavlink_msg_cellular_status_get_failure_reason(&msg);
+    lte_type = (uint8_t)mavlink_msg_cellular_status_get_type(&msg);
+    lte_qual = (uint8_t)mavlink_msg_cellular_status_get_quality(&msg);
+
+  });
+  
   /*
   auto ps1 = mavsdk::MavlinkPassthrough{systems[0]};
   ps1.subscribe_message(MAVLINK_MSG_ID_RC_CHANNELS,[](const mavlink_message_t &msg){

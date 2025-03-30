@@ -131,7 +131,7 @@ int main(int argc, char* argv[]) {
   std::thread t4(&draw_hud);
   std::thread t5(&mavlink_thread);
   std::thread t6(&map_thread);
-  std::thread t7(&wfbgs_thread);
+  //std::thread t7(&wfbgs_thread);
  
   //hide hands, we are not using them right now.
   for (size_t h = 0; h < handed_max; h++) {
