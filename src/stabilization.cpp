@@ -4,9 +4,9 @@ stabilizer::stabilizer(){
 
   downSample = 1.0f/2.0f;
   zoomFactor = 1.0f;
-  processVar = 0.03f;
-  measVar = 2.0f;
-  roiDiv = 3.0f;
+  processVar = 0.05f;
+  measVar = 2.5f;
+  roiDiv = 4.0f;
   Q = cv::Mat(1, 3, CV_64F, processVar);
   R = cv::Mat(1, 3, CV_64F, measVar);
   m = cv::Mat::zeros(2, 3, CV_64F);
@@ -21,7 +21,7 @@ stabilizer::stabilizer(){
   dx = 0; 
   dy = 0; 
   da = 0;
-  std::cout << "stabilizer initialized" << std::endl;
+  std::cout << "  Stabilizer initialized" << std::endl;
 }
 
 
@@ -127,19 +127,26 @@ stabilizer::stabilize(cv::Mat &buf, float* rx, float* ry, float* ra){
   *ry = (float)dy;
   *ra = (float)da;
   //clamp values and scale
-  float mX = res_w_orig * 0.05;
-  float mY = res_h_orig * 0.05;
+  float mX = res_w_orig * 0.04;
+  float mY = res_h_orig * 0.04;
   if (*rx > mX) *rx = mX;
   if (*rx < -mX) *rx = -mX;
   if (*ry > mY) *ry = mY;
   if (*ry < -mY) *ry = -mY;
   *rx /= res_w_orig;
   *ry /= res_h_orig;
+  if (da > 0.0872665f) *ra = 0.087266f;
+  if (da < -0.0872665f) *ra = -0.087266f;
+  //clamped transform matrix
   xform = m.clone();
+  xform.at<double>(0, 0) = cos(*ra);
+  xform.at<double>(0, 1) = -sin(*ra);
+  xform.at<double>(1, 0) = sin(*ra);
+  xform.at<double>(1, 1) = cos(*ra);
   xform.at<double>(0, 2) = *rx;
   xform.at<double>(1, 2) = *ry;
- 
   
+  //store data for next iteration
   prevOrig = orig.clone();
   prevFrame = currFrame.clone();
   prevGray = currGray.clone();
@@ -163,7 +170,7 @@ cv::Mat stabilizer::getPrevFrame(){
 
 cv::Mat stabilizer::getStabFrame(){
   cv::Mat fS, f_stabilized;
-  cv::warpAffine(prevOrig, fS, m, cv::Size(prevOrig.cols, prevOrig.rows));
+  cv::warpAffine(prevOrig, fS, xform, cv::Size(prevOrig.cols, prevOrig.rows));
   cv::Size s = fS.size();
   cv::Mat T = cv::getRotationMatrix2D(cv::Point2f(s.width / 2, s.height / 2), 0, 1.0);
   cv::warpAffine(fS, f_stabilized, T, s);

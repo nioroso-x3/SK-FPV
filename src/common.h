@@ -29,8 +29,6 @@ extern std::string fmodes_PX4[];
 
 extern VideoContainer vsurfaces;
 
-
-
 //Map
 extern mesh_t     plane6_mesh;
 extern material_t plane6_mat;

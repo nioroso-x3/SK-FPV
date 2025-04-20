@@ -52,6 +52,7 @@ find_library( ICU18n_LIBRARIES icui18n )
 find_library( ICU_LIBRARIES icuuc )
 find_library( WEBP_LIBRARIES webp )
 find_library( UV_LIBRARIES uv )
+find_library( ZMQ_LIBRARIES zmq )
 pkg_check_modules( CAIROMM REQUIRED IMPORTED_TARGET cairomm-1.0 )
 include_directories( SYSTEM ${OpenCV_INCLUDE_DIRS} )
 include_directories( SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native/platform/default/include )
@@ -82,6 +83,7 @@ add_executable( SK_FPV
   src/wfb_stats.cpp
   src/fisheye.cpp
   src/framegrabber.cpp
+  src/targets.cpp
 )
 
 # Link to dependencies
@@ -91,6 +93,7 @@ target_link_libraries( SK_FPV
   MAVSDK::mavsdk
   PkgConfig::CAIROMM
   nlohmann_json::nlohmann_json
+  ${ZMQ_LIBRARIES}
   ${MSGPACK_LIBRARIES}
   ${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native/build/libmbgl-core.a 
   ${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native/build/libmbgl-vendor-csscolorparser.a 

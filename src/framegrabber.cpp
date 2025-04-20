@@ -2,23 +2,45 @@
 
 
 FrameWriter::FrameWriter(){}
-FrameWriter::FrameWriter(std::string pipeline, tex_t &vid0, tex_t &vid1, bool stabilization, cv::Mat Km, cv::Mat Dm, float b, cv::Size corr_ori_r, int stype){
-    start(pipeline, vid0, vid1, stab, Km, Dm, b, corr_ori, stype);
+FrameWriter::FrameWriter(std::string name, 
+                         std::string gst_pipeline,
+                         std::map<std::string,cv::Mat> &overlays,
+                         std::map<std::string,cv::Size> &vsizes,
+                         tex_t       &vid0, 
+                         tex_t       &vid1, 
+                         bool        stab, 
+                         cv::Mat     K, 
+                         cv::Mat     D, 
+                         float       balance, 
+                         cv::Size    corr_ori, 
+                         int         type){
+    start(name, gst_pipeline, overlays, vsizes, vid0, vid1, stab, K, D, balance, corr_ori, type);
 }
 void FrameWriter::play(){
     playing = true;
 }
-void FrameWriter::start(std::string pipeline, tex_t &vid0, tex_t &vid1, bool stabilization, cv::Mat Km, cv::Mat Dm, float b, cv::Size corr_ori_r, int stype){
+void FrameWriter::start(std::string  name, 
+                        std::string  gst_pipeline, 
+                        std::map<std::string,cv::Mat> &overlays,
+                        std::map<std::string,cv::Size> &vsizes,
+                        tex_t        &vid0, 
+                        tex_t        &vid1, 
+                        bool         stab, 
+                        cv::Mat      K, 
+                        cv::Mat      D, 
+                        float        balance, 
+                        cv::Size     corr_ori, 
+                        int          type){
+    this->name = name;
+    this->gst_pipeline = gst_pipeline;
+    this->stab = stab;
+    this->corr_ori = corr_ori;
+    this->K = K;
+    this->D = D;
+    this->balance = balance;
     playing = true;
     run = true;
-    stab = stabilization;
-    gst_pipeline = pipeline;
-    type = stype;
-    corr_ori = corr_ori_r;
-    K = Km;
-    D = Dm;
-    balance = b;
-    t = std::make_shared<std::thread>(&FrameWriter::stream, this, &vid0, &vid1);
+    t = std::make_shared<std::thread>(&FrameWriter::stream, this, &vid0, &vid1, &overlays, &vsizes);
     t->detach();
 }
 
@@ -36,7 +58,10 @@ void FrameWriter::toggleStab(){
    stab = !stab;
 }
 
-void FrameWriter::stream(tex_t *vid0, tex_t *vid1){
+void FrameWriter::stream(tex_t *vid0, 
+                         tex_t *vid1, 
+                         std::map<std::string,cv::Mat> *overlays, 
+                         std::map<std::string,cv::Size> *vsizes){
    cv::VideoCapture cap(gst_pipeline, cv::CAP_GSTREAMER);
    cv::Mat img;
    cv::Mat i1;
@@ -51,6 +76,11 @@ void FrameWriter::stream(tex_t *vid0, tex_t *vid1){
          continue;
       }
       cap.read(img);
+      (*vsizes)[name] = cv::Size(img.cols,img.rows);
+      if (overlays->find(name) != overlays->end()){
+        img = img + overlays->at(name);
+      }
+
       //dual image
       if (type == 1){
           int w = img.cols;
@@ -67,12 +97,10 @@ void FrameWriter::stream(tex_t *vid0, tex_t *vid1){
               std::future<cv::Mat> f1 = std::async(std::launch::async, &stabilizer::getStabFrame, &stab0);
               i2 = stab1.getStabFrame();
               i1 = f1.get();
- 
          }
           
           tex_set_colors(*vid0,i1.cols,i1.rows,(void*)i1.datastart);
           tex_set_colors(*vid1,i2.cols,i2.rows,(void*)i2.datastart);
-
       }
       //single video
       else{
@@ -233,7 +261,7 @@ void VideoContainer::load_json(nlohmann::json j) {
                 add_undistortion_shader(name, K, D, corr_ori, balance);
                 if(type==1) add_undistortion_shader(oname, K, D, corr_ori, balance);
             }
-            frame_caps[name].start(pipeline, t0, t1, (bool)stab, K, D, balance, corr_ori, type);
+            frame_caps[name].start(name, pipeline, overlays, vsizes, t0, t1, (bool)stab, K, D, balance, corr_ori, type);
         }
     }
     catch (const nlohmann::json::exception& e) {

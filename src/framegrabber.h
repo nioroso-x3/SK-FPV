@@ -18,10 +18,10 @@
 
 using namespace sk;
 
-
 class FrameWriter{
   private:
     std::shared_ptr<std::thread> t;
+    std::string name;
     std::string gst_pipeline;
     bool stab;
     bool playing;
@@ -31,13 +31,38 @@ class FrameWriter{
     cv::Mat D;
     cv::Size corr_ori;
     float balance;
-    void stream(tex_t *vid0, tex_t *vid1);
+    void stream(tex_t *vid0, 
+                tex_t *vid1, 
+                std::map<std::string,cv::Mat> *overlays,
+                std::map<std::string,cv::Size> *vsizes);
   public:
     FrameWriter();
     ~FrameWriter();
-    FrameWriter(std::string pipeline, tex_t &vid0, tex_t &vid1, bool stabilization, cv::Mat Km, cv::Mat Dm, float b, cv::Size corr_ori_r, int stype);
+    FrameWriter(std::string name, 
+                std::string gst_pipeline, 
+                std::map<std::string,cv::Mat> &overlays, 
+                std::map<std::string,cv::Size> &vsizes, 
+                tex_t &vid0, 
+                tex_t &vid1, 
+                bool stab, 
+                cv::Mat K, 
+                cv::Mat D, 
+                float balance, 
+                cv::Size corr_ori, 
+                int type);
+    void start(std::string name, 
+               std::string gst_pipeline, 
+               std::map<std::string,cv::Mat> &overlays, 
+               std::map<std::string,cv::Size> &vsizes, 
+               tex_t &vid0, 
+               tex_t &vid1, 
+               bool stab, 
+               cv::Mat K, 
+               cv::Mat D, 
+               float balance, 
+               cv::Size corr_ori, 
+               int type);
     void play();
-    void start(std::string pipeline, tex_t &vid0, tex_t &vid1, bool stabilization, cv::Mat Km, cv::Mat Dm, float b, cv::Size corr_ori_r, int stype);
     void stop();
     void terminate();
     void toggleStab();
@@ -56,6 +81,8 @@ class VideoContainer{
     std::map<std::string,pose_t>      pose_ts;
     std::map<std::string,tex_t>       tex_ts;
     std::map<std::string,FrameWriter> frame_caps;
+    std::map<std::string,cv::Mat>     overlays;
+    std::map<std::string,cv::Size>    vsizes;
     void add_surface(std::string name, float ratio, float scale, pose_t pose, bool transparent);
     void add_undistortion_shader(std::string name, const cv::Mat K, const cv::Mat D, const cv::Size imageSize, double balance);
     void del_surface(std::string name);

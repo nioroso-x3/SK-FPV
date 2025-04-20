@@ -4,6 +4,7 @@
 #include "stabilization.h"
 #include "mapping.h"
 #include "wfb_stats.h"
+#include "targets.h"
 
 using namespace sk;
 using namespace mavsdk;
@@ -91,6 +92,11 @@ void wfbgs_thread(){
   std::cout << "WFB rx stats thread finished" << std::endl;
 }
 
+void zmq_thread(){
+  std::string uri("tcp://0.0.0.0:6600");
+  listen_zmq(uri, vsurfaces.overlays, vsurfaces.vsizes);
+}
+
 int main(int argc, char* argv[]) {
 
   //initialize stereokit
@@ -132,7 +138,8 @@ int main(int argc, char* argv[]) {
   std::thread t5(&mavlink_thread);
   std::thread t6(&map_thread);
   //std::thread t7(&wfbgs_thread);
- 
+  std::thread t8(&zmq_thread);
+
   //hide hands, we are not using them right now.
   for (size_t h = 0; h < handed_max; h++) {
       input_hand_visible((handed_)h,false);
