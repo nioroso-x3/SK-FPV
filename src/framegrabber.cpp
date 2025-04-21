@@ -38,6 +38,7 @@ void FrameWriter::start(std::string  name,
     this->K = K;
     this->D = D;
     this->balance = balance;
+    this->type = type;
     playing = true;
     run = true;
     t = std::make_shared<std::thread>(&FrameWriter::stream, this, &vid0, &vid1, &overlays, &vsizes);
@@ -70,6 +71,7 @@ void FrameWriter::stream(tex_t *vid0,
    stabilizer stab1;
    std::cout << "Starting pipeline:" << std::endl;
    std::cout << "  " << gst_pipeline << std::endl;
+   std:: cout << "  Type: " << type << std::endl;
    while(cap.isOpened() && run){
       if(!playing){
          std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -80,7 +82,7 @@ void FrameWriter::stream(tex_t *vid0,
       if (overlays->find(name) != overlays->end()){
         img = img + overlays->at(name);
       }
-
+     
       //dual image
       if (type == 1){
           int w = img.cols;
