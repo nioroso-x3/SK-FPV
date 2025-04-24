@@ -5,8 +5,8 @@ stabilizer::stabilizer(){
   downSample = 1.0f/2.0f;
   zoomFactor = 1.0f;
   processVar = 0.05f;
-  measVar = 2.5f;
-  roiDiv = 4.0f;
+  measVar = 2.6f;
+  roiDiv = 3.5f;
   Q = cv::Mat(1, 3, CV_64F, processVar);
   R = cv::Mat(1, 3, CV_64F, measVar);
   m = cv::Mat::zeros(2, 3, CV_64F);
@@ -126,17 +126,17 @@ stabilizer::stabilize(cv::Mat &buf, float* rx, float* ry, float* ra){
   *rx = (float)dx;
   *ry = (float)dy;
   *ra = (float)da;
+  
   //clamp values and scale
-  float mX = res_w_orig * 0.04;
-  float mY = res_h_orig * 0.04;
+  float mX = res_w_orig * 0.05;
+  float mY = res_h_orig * 0.05;
   if (*rx > mX) *rx = mX;
   if (*rx < -mX) *rx = -mX;
   if (*ry > mY) *ry = mY;
   if (*ry < -mY) *ry = -mY;
-  *rx /= res_w_orig;
-  *ry /= res_h_orig;
   if (da > 0.0872665f) *ra = 0.087266f;
   if (da < -0.0872665f) *ra = -0.087266f;
+ 
   //clamped transform matrix
   xform = m.clone();
   xform.at<double>(0, 0) = cos(*ra);
@@ -145,6 +145,10 @@ stabilizer::stabilize(cv::Mat &buf, float* rx, float* ry, float* ra){
   xform.at<double>(1, 1) = cos(*ra);
   xform.at<double>(0, 2) = *rx;
   xform.at<double>(1, 2) = *ry;
+  
+  //normalize for other uses
+  *rx /= res_w_orig;
+  *ry /= res_h_orig;
   
   //store data for next iteration
   prevOrig = orig.clone();

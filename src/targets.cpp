@@ -13,25 +13,27 @@ void draw_box(float   x1f,
     int y1 = y1f*h;
     int x2 = x2f*w;
     int y2 = y2f*h;
-    cv::Scalar color = cv::Scalar(255,255,255,255);
+    cv::Scalar color = cv::Scalar(10,255,10,255);
+    if (cls != 0) color = cv::Scalar(255,10,10,255);
+
     cv::rectangle(img, cv::Point(x1, y1), cv::Point(x2, y2),color,2);
-    /*
+        
     char text[256];
-    sprintf(text, "%d %.1f%%", cls, p * 100);
-        //No need to draw labels
+    if(cls == 0) sprintf(text, "HUMAN %.1f%%", p * 100);
+    if(cls > 0 && cls <= 8) sprintf(text, "VEHIC %.1f%%", p * 100);
+    if(cls > 8) sprintf(text, "????? %.1f%%", p * 100);
+   
     int baseLine = 0;
-    cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
+    cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_PLAIN, 0.5, 1, &baseLine);
 
     int x = x1;
     int y = y1 - label_size.height - baseLine;
     if (y < 0) y = 0;
     if (x + label_size.width > img.cols) x = img.cols - label_size.width;
 
-    cv::rectangle(img, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)), cv::Scalar(255, 255, 255, 255), -1);
+    cv::rectangle(img, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)), color, -1);
 
-    cv::putText(img, text, cv::Point(x, y + label_size.height), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0, 0));
-    */
-
+    cv::putText(img, text, cv::Point(x, y + label_size.height), cv::FONT_HERSHEY_PLAIN, 0.5, cv::Scalar(0, 0, 0, 255));
 }
 
 void listen_zmq(const std::string        &bind_address, 

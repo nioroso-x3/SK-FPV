@@ -22,6 +22,7 @@ class FrameWriter{
   private:
     std::shared_ptr<std::thread> t;
     std::string name;
+    std::string oname;
     std::string gst_pipeline;
     bool stab;
     bool playing;
@@ -32,7 +33,9 @@ class FrameWriter{
     cv::Size corr_ori;
     float balance;
     void stream(tex_t *vid0, 
-                tex_t *vid1, 
+                tex_t *vid1,
+                tex_t *ov0,
+                tex_t *ov1,
                 std::map<std::string,cv::Mat> *overlays,
                 std::map<std::string,cv::Size> *vsizes);
   public:
@@ -44,6 +47,8 @@ class FrameWriter{
                 std::map<std::string,cv::Size> &vsizes, 
                 tex_t &vid0, 
                 tex_t &vid1, 
+                tex_t &ov0, 
+                tex_t &ov1, 
                 bool stab, 
                 cv::Mat K, 
                 cv::Mat D, 
@@ -56,6 +61,8 @@ class FrameWriter{
                std::map<std::string,cv::Size> &vsizes, 
                tex_t &vid0, 
                tex_t &vid1, 
+               tex_t &ov0, 
+               tex_t &ov1, 
                bool stab, 
                cv::Mat K, 
                cv::Mat D, 
@@ -84,7 +91,7 @@ class VideoContainer{
     std::map<std::string,cv::Mat>     overlays;
     std::map<std::string,cv::Size>    vsizes;
     void add_surface(std::string name, float ratio, float scale, pose_t pose, bool transparent);
-    void add_undistortion_shader(std::string name, const cv::Mat K, const cv::Mat D, const cv::Size imageSize, double balance);
+    void add_video_shader(std::string name, const cv::Mat K, const cv::Mat D, const cv::Size imageSize, double balance);
     void del_surface(std::string name);
     std::vector<std::string> list_names();
     void load_file(std::string jsonpath);

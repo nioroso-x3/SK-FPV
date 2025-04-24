@@ -8,13 +8,15 @@ FrameWriter::FrameWriter(std::string name,
                          std::map<std::string,cv::Size> &vsizes,
                          tex_t       &vid0, 
                          tex_t       &vid1, 
+                         tex_t       &ov0, 
+                         tex_t       &ov1, 
                          bool        stab, 
                          cv::Mat     K, 
                          cv::Mat     D, 
                          float       balance, 
                          cv::Size    corr_ori, 
                          int         type){
-    start(name, gst_pipeline, overlays, vsizes, vid0, vid1, stab, K, D, balance, corr_ori, type);
+    start(name, gst_pipeline, overlays, vsizes, vid0, vid1, ov0, ov1, stab, K, D, balance, corr_ori, type);
 }
 void FrameWriter::play(){
     playing = true;
@@ -25,6 +27,8 @@ void FrameWriter::start(std::string  name,
                         std::map<std::string,cv::Size> &vsizes,
                         tex_t        &vid0, 
                         tex_t        &vid1, 
+                        tex_t        &ov0, 
+                        tex_t        &ov1, 
                         bool         stab, 
                         cv::Mat      K, 
                         cv::Mat      D, 
@@ -32,6 +36,7 @@ void FrameWriter::start(std::string  name,
                         cv::Size     corr_ori, 
                         int          type){
     this->name = name;
+    this->oname = name + std::string("_1");
     this->gst_pipeline = gst_pipeline;
     this->stab = stab;
     this->corr_ori = corr_ori;
@@ -41,7 +46,7 @@ void FrameWriter::start(std::string  name,
     this->type = type;
     playing = true;
     run = true;
-    t = std::make_shared<std::thread>(&FrameWriter::stream, this, &vid0, &vid1, &overlays, &vsizes);
+    t = std::make_shared<std::thread>(&FrameWriter::stream, this, &vid0, &vid1, &ov0, &ov1, &overlays, &vsizes);
     t->detach();
 }
 
@@ -61,6 +66,8 @@ void FrameWriter::toggleStab(){
 
 void FrameWriter::stream(tex_t *vid0, 
                          tex_t *vid1, 
+                         tex_t *ov0, 
+                         tex_t *ov1, 
                          std::map<std::string,cv::Mat> *overlays, 
                          std::map<std::string,cv::Size> *vsizes){
    cv::VideoCapture cap(gst_pipeline, cv::CAP_GSTREAMER);
@@ -78,10 +85,6 @@ void FrameWriter::stream(tex_t *vid0,
          continue;
       }
       cap.read(img);
-      (*vsizes)[name] = cv::Size(img.cols,img.rows);
-      if (overlays->find(name) != overlays->end()){
-        img = img + overlays->at(name);
-      }
      
       //dual image
       if (type == 1){
@@ -99,19 +102,39 @@ void FrameWriter::stream(tex_t *vid0,
               std::future<cv::Mat> f1 = std::async(std::launch::async, &stabilizer::getStabFrame, &stab0);
               i2 = stab1.getStabFrame();
               i1 = f1.get();
-         }
-          
+          }
+          //process overlays
+          (*vsizes)[name] = cv::Size(i1.cols,i1.rows);
+          (*vsizes)[oname] = cv::Size(i2.cols,i2.rows);
+          if (overlays->find(name) != overlays->end()){
+             cv::Mat ov = (*overlays)[name].clone();
+             tex_set_colors(*ov0,ov.cols,ov.rows,(void*)ov.datastart);           
+          }
+          if (overlays->find(oname) != overlays->end()){
+             cv::Mat ov = (*overlays)[oname].clone();
+             tex_set_colors(*ov1,ov.cols,ov.rows,(void*)ov.datastart);           
+          }
+         
           tex_set_colors(*vid0,i1.cols,i1.rows,(void*)i1.datastart);
           tex_set_colors(*vid1,i2.cols,i2.rows,(void*)i2.datastart);
       }
       //single video
-      else{
+      if (type == 0){
           if (stab){
               stab0.stabilize_i(img);
               img = stab0.getStabFrame();                  
           }
+          (*vsizes)[name] = cv::Size(img.cols,img.rows);
+          if (overlays->find(name) != overlays->end()){
+             cv::Mat ov = (*overlays)[name].clone();
+             tex_set_colors(*ov0,ov.cols,ov.rows,(void*)ov.datastart);           
+          }
           tex_set_colors(*vid0,img.cols,img.rows,(void*)img.datastart);
 
+      }
+      //stereo video
+      if (type == 99){
+         //todo
       }
    }
    cap.release();
@@ -130,46 +153,71 @@ void VideoContainer::add_surface(std::string name, float ratio, float scale, pos
     mesh_ts[name] = mesh_gen_plane({ratio*scale,scale},{0,0,1},{0,1,0});
     material_ts[name] = material_copy_id(default_id_material_unlit);
     pose_ts[name] = pose;
+    //video texture
     tex_ts[name] = tex_create(tex_type_image_nomips | tex_type_dynamic, tex_format_rgba32);
-
     tex_set_address(tex_ts[name], tex_address_clamp);
     material_set_texture(material_ts[name],"diffuse", tex_ts[name]);
     if(transparent) material_set_transparency(material_ts[name],transparency_blend);
 }
 
-void VideoContainer::add_undistortion_shader(std::string name, const cv::Mat K, const cv::Mat D, const cv::Size imageSize, double balance){
+void VideoContainer::add_video_shader(std::string name, const cv::Mat K, const cv::Mat D, const cv::Size imageSize, double balance){
     //load the shader
-    shader_t undistort = shader_create_file("undistort.hlsl");
-    material_set_shader(material_ts[name], undistort);
-    shader_release(undistort);
-                                  
-    //calculate the transform matrix
-    cv::Mat map1, map2;
-    precomputeUndistortMaps(K, D, imageSize, balance, map1, map2);
+    shader_t sh = shader_create_file("video.hlsl");
+    material_set_shader(material_ts[name], sh);
+    shader_release(sh);
     
-    //normalize
-    map1 = map1 / (map1.cols-1); 
-    map2 = map2 / (map2.rows-1);
-    
+    //Create the overlay texture
+    std::string ov = name + std::string("_overlay");
+    tex_ts[ov] = tex_create(tex_type_image_nomips | tex_type_dynamic, tex_format_rgba32);
+    //Configure the textures
+    tex_set_address(tex_ts[ov], tex_address_clamp);
+
+    //Bind the texture to the material
+    material_set_texture(material_ts[name],"over",tex_ts[ov]);
+
+    //Dummy 960x540 overlay
+    cv::Mat overlay = cv::Mat::zeros(540,960,CV_8UC4);
+   
+    //Set overlay to the dummy texture
+    tex_set_colors(tex_ts[ov],overlay.cols,overlay.rows,(void*)overlay.datastart);
+ 
     //Create the lookup textures
     std::string fx = name + std::string("_distx");
     std::string fy = name + std::string("_disty");
-  
     tex_ts[fx] = tex_create(tex_type_image_nomips, tex_format_r32);
     tex_ts[fy] = tex_create(tex_type_image_nomips, tex_format_r32);
     
     //Configure the textures
     tex_set_address(tex_ts[fx], tex_address_clamp);
     tex_set_address(tex_ts[fy], tex_address_clamp);
-        
-    //Bind the textures to the shader
+ 
+    //Bind the textures to the material
     material_set_texture(material_ts[name],"mapX",tex_ts[fx]);
     material_set_texture(material_ts[name],"mapY",tex_ts[fy]);
-        
+    
+    // maps for x coords and y coords
+    cv::Mat map1, map2;
+    //calculate the transform matrix
+    if (!K.empty() && !D.empty()){
+        precomputeUndistortMaps(K, D, imageSize, balance, map1, map2);
+    
+        //normalize
+        map1 = map1 / (map1.cols-1); 
+        map2 = map2 / (map2.rows-1);
+ 
+    }else{
+        //create two 1:1 mapping matrices
+        cv::Mat row = cv::Mat(1,1024,CV_32F);
+        for (int x = 0; x < 1024; ++x) {
+            row.at<float>(0, x) = static_cast<float>(x) / (1023);
+        }
+        cv::repeat(row, 1024, 1, map1);
+        cv::rotate(map1,map2,cv::ROTATE_90_CLOCKWISE);
+    }
     //Write the transformation matrixes to the respective lookup textures.
     tex_set_colors(tex_ts[fx],map1.cols,map1.rows,(void*)map1.datastart);
     tex_set_colors(tex_ts[fy],map2.cols,map2.rows,(void*)map2.datastart);
-      
+  
 }     
 
 void VideoContainer::del_surface(std::string name) {
@@ -212,6 +260,8 @@ void VideoContainer::load_json(nlohmann::json j) {
     try {
         for (auto& [name, obj_json] : j.items()) {
             std::string oname = name + std::string("_1");
+            std::string overlay0 = name + std::string("_overlay");
+            std::string overlay1 = oname + std::string("_overlay");
             std::string pipeline = obj_json.at("pipeline").get<std::string>();
             float aspect_ratio = obj_json.at("aspect_ratio").get<float>();
             float scale = obj_json.at("scale").get<float>();
@@ -257,13 +307,19 @@ void VideoContainer::load_json(nlohmann::json j) {
             add_surface(name, aspect_ratio, scale, pose, false);
             tex_t &t0 = tex_ts[name];
             tex_t &t1 = type == 0 ? tex_ts[name] : tex_ts[oname];
-            //disable stabilization, we have to build a shader that does all transformations first...
+            //disable stabilization with undistortion, we have to build a shader that does all transformations first...
+            
             if(distorted){
                 stab = false;
-                add_undistortion_shader(name, K, D, corr_ori, balance);
-                if(type==1) add_undistortion_shader(oname, K, D, corr_ori, balance);
+            //    add_undistortion_shader(name, K, D, corr_ori, balance);
+            //    if(type==1) add_undistortion_shader(oname, K, D, corr_ori, balance);
             }
-            frame_caps[name].start(name, pipeline, overlays, vsizes, t0, t1, (bool)stab, K, D, balance, corr_ori, type);
+            add_video_shader(name, K, D, corr_ori, balance); 
+            if (type==1) add_video_shader(oname, K, D, corr_ori, balance); 
+            tex_t &ov0 = tex_ts[overlay0];
+            tex_t &ov1 = type == 0 ? tex_ts[overlay0] : tex_ts[overlay1];
+
+            frame_caps[name].start(name, pipeline, overlays, vsizes, t0, t1, ov0, ov1, (bool)stab, K, D, balance, corr_ori, type);
         }
     }
     catch (const nlohmann::json::exception& e) {
