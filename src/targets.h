@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 #include <map>
-
+#include <chrono>
 using namespace sk;
 
 void draw_box(float   x1f, 
@@ -19,6 +19,14 @@ void draw_box(float   x1f,
               int     cls, 
               float   p, 
               cv::Mat &img);
+
+void draw_target(float   x1f, 
+                 float   y1f, 
+                 float   x2f, 
+                 float   y2f, 
+                 int     cls, 
+                 float   p, 
+                 cv::Mat &img);
 
 
 void listen_zmq(const std::string              &bind_address, 

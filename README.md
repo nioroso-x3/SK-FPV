@@ -16,47 +16,61 @@ The headset output is transmitted as a 40mbps intra-only H264 rtp stream on port
 
 ## Linux pre-requisites
 
-Linux users will need to install some pre-requisites for this template to compile. 
+Linux users will need to install some pre-requisites: 
 
 * Monado and your headsets drivers should be working first, for example on my CV1 I also need the OpenHMD libraries.
 
 * OpenCV with gstreamer, Ubuntu 24.10 has it enabled by default
 
-* MAVSDK 2.x https://github.com/mavlink/MAVSDK.
+* MAVSDK 2.x, 3.0 is not compatible yet. (https://github.com/mavlink/MAVSDK)
 
-* libcairomm-1.0 for the HUD
+* libcairomm-1.0 for the HUD.
 
-* maplibre-native https://github.com/maplibre/maplibre-native for the live map. Clone and build it inside this repo following the instructions for linux. USE A COMMIT FROM OCTOBER 2024 TO JUNE 2024! There were some breaking changes.
+* maplibre-native https://github.com/maplibre/maplibre-native for the live map. Clone it inside this repo, set the commit to 8c6b36811b8f06f12dfc08dbce20ecc7eeca1dfa and build it following the instructions for linux, it should compile the necessary libraries.
 
-* msgpack-c to connect to the wfb-ng telemetry.
+* ZMQ C++ and msgpack-c to receive and display the target overlays. 
 
 * Some extra libraries for maplibre, cmake should find them all or show an error telling you what to install.
 
-```shell
-sudo apt-get update
-sudo apt-get install build-essential cmake unzip libfontconfig1-dev libgl1-mesa-dev libvulkan-dev libx11-xcb-dev libxcb-dri2-0-dev libxcb-glx0-dev libxcb-icccm4-dev libxcb-keysyms1-dev libxcb-randr0-dev libxrandr-dev libxxf86vm-dev mesa-common-dev libjsoncpp-dev libxfixes-dev libglew-dev
-```
-
 ## Command line instructions
 
-For those new to CMake, here's a quick example of how to compile and build this using the CLI! If something is going wrong, sometimes adding in a `-v` for verbose will give you some additional info you might not see from VS Code.
+Compiling maplibre-native
 
 ```shell
 # From the project root directory
 
+#Set C and C++ compilers to gcc-11.x
+
+export CC=gcc-11
+export CXX=g++-11
+
 # Download and compile maplibre-native, no need to install it.
 
-# Make a folder to build in
+git clone https://github.com/maplibre/maplibre-native.git
+cd maplibre-native
+git checkout 8c6b36811b8f06f12dfc08dbce20ecc7eeca1dfa
+git submodule update --init --recursive
+cmake -B build -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DMLN_WITH_COVERAGE=OFF -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON
+cmake --build build --target mbgl-render -j $(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null)
+
+cd ..
+
 mkdir build
+
 cd build
 
-# Configure the build
-cmake .. 
-# Build
-make -j 20
+cmake ..
 
-# Run the app
-./SK_FPV
+#Install any missing libraries if cmake throws an error
+
+make -j 16
+
+cp ../assets/* .
+
+#Edit cam.json and styles.json to your needs.
+
+./SK-FPV
+
 ```
 ## Demo
 

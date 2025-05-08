@@ -1,5 +1,7 @@
 #include "targets.h"
 
+using namespace std::chrono_literals;
+
 void draw_box(float   x1f, 
               float   y1f, 
               float   x2f, 
@@ -36,6 +38,49 @@ void draw_box(float   x1f,
     cv::putText(img, text, cv::Point(x, y + label_size.height), cv::FONT_HERSHEY_PLAIN, 0.5, cv::Scalar(0, 0, 0, 255));
 }
 
+void draw_target(float   x1f, 
+                 float   y1f, 
+                 float   x2f, 
+                 float   y2f, 
+                 int     cls, 
+                 float   p, 
+                 cv::Mat &img){
+    int w = img.cols;
+    int h = img.rows;
+    int x1 = x1f*w;
+    int y1 = y1f*h;
+    int x2 = x2f*w;
+    int y2 = y2f*h;
+    //calculate proportional marker size and line width
+    int fw = w/32;
+    int lw = w/480;
+
+    //get detection box center
+    int cx = (x1+x2) / 2;
+    int cy = (y1+y2) / 2;
+    cv::Scalar color;
+    
+    //Set color according to p value
+    if (p <= 0.5) color = cv::Scalar(255,20,20,255);
+    if (p > 0.5 && p < 0.8) color = cv::Scalar(230,230,20,255);
+    if (p >= 0.8) color = cv::Scalar(20,255,20,255);
+    
+    //mark humans with triangles
+    if (cls == 0){
+        cv::Point p1(cx, cy+0.6666*fw);
+        cv::Point p2(cx+fw/2, cy-0.3333*fw);
+        cv::Point p3(cx-fw/2, cy-0.3333*fw);
+        cv::line(img, p1, p2, color, lw);
+        cv::line(img, p2, p3, color, lw);
+        cv::line(img, p3, p1, color, lw);
+    }
+    //mark vehicles with boxes
+    else{
+       cv::rectangle(img, cv::Rect(cv::Point(cx-fw/2,cy-fw/2), cv::Point(cx+fw/2,cy+fw/2)), color, lw);
+    }
+    //cv::circle(img,cv::Point(cx,cy),fw/2,color, 0, 2);
+}
+
 void listen_zmq(const std::string        &bind_address, 
                 std::map<std::string,cv::Mat> &overlays,
                 std::map<std::string,cv::Size> &vsizes) {
@@ -53,6 +98,17 @@ void listen_zmq(const std::string        &bind_address,
     std::map<std::string,uint64_t> last_ts;
     while (true) {
         count++;
+        zmq::pollitem_t items[] = { {socket, 0, ZMQ_POLLIN, 0}  };
+        zmq::poll(items, 1, 1s);
+        //clear overlays if no messages
+        if (!(items[0].revents & ZMQ_POLLIN)){
+
+            for (auto it = overlays.begin(); it != overlays.end(); ++it){
+                it->second.setTo(cv::Scalar(0,0,0,0));
+            }
+            continue;
+        }
+        //messages available, parse them
         zmq::message_t msg;
         auto ret = socket.recv(msg, zmq::recv_flags::none);
 
@@ -65,13 +121,13 @@ void listen_zmq(const std::string        &bind_address,
             obj.convert(vec);
 
             if (vec.size() != 8) {
-                std::cerr << "Invalid message format (expected 8 elements)\n";
+                std::cerr << "ZMQ: Invalid message format (expected 8 elements)\n";
                 continue;
             }
 
             std::string name;
             uint64_t ts;
-            float x1, y1, x2, y2; //ratios
+            float x1, y1, x2, y2; //detection box as proportional ratios of the image
             uint8_t t;
             float p;
 
@@ -85,15 +141,15 @@ void listen_zmq(const std::string        &bind_address,
             vec[7].convert(p);
 
             if (vsizes.find(name) == vsizes.end()) {
-                std::cout << "Overlay " << name << " not found\n";
+                std::cout << "ZMQ: Overlay " << name << " not found\n";
 
                 continue; //received data for a nonexisting video input
 
             }
             if (last_ts.find(name) == last_ts.end()){
                 //initialize the final and temp overlays
-                std::cout << "Initializing new overlay\n";
-                std::cout << name << " " << vsizes[name].width << " " << vsizes[name].height << "\n";
+                std::cout << "ZMQ: Initializing new overlay\n";
+                std::cout << "  " << name << " " << vsizes[name].width << " " << vsizes[name].height << "\n";
                 overlays[name] = cv::Mat::zeros(vsizes[name].height,vsizes[name].width,CV_8UC4);
                 temp[name] = overlays[name].clone();
                 last_ts[name] = ts;
@@ -105,17 +161,18 @@ void listen_zmq(const std::string        &bind_address,
                 last_ts[name] = ts;
             }
             if (ts < last_ts[name]){ //skip data arriving late.
-
-                 std::cout << "Skipping old data for cam " << name << "\n";
+                 //std::cout << "Skipping old data for cam " << name << "\n";
                  continue; 
             }             
             //draw boxes to the temp overlay
-            draw_box(x1,y1,x2,y2,t,p,temp[name]);
+            draw_target(x1,y1,x2,y2,t,p,temp[name]);
             
 
-        } catch (const std::exception& ex) {
-            std::cerr << "Failed to parse msgpack message: " << ex.what() <<  " " << count << std::endl;
+        } 
+        catch (const std::exception& ex) {
+            std::cerr << "ZMQ: Failed to parse msgpack message: " << ex.what() <<  " " << count << std::endl;
             continue;
         }
     }
+
 }
