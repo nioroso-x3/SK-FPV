@@ -5,14 +5,16 @@ import msgpack
 import time
 
 context = zmq.Context()
-socket = context.socket(zmq.PUB)
-socket.connect("tcp://127.0.0.1:6600")
+socket = context.socket(zmq.PUSH)
+
+#zmq url, like "tcp://127.0.0.1:6600"
+socket.connect(sys.argv[1])
 i = 0
 t = 0
 while True:
     
     msg = [
-        sys.argv[1],
+        sys.argv[2], #name of the cam that matches cam.json
         180000000000+t,
         (i%5)/10,
         (i%5)/10,

@@ -1,6 +1,25 @@
 #include "targets.h"
 
 using namespace std::chrono_literals;
+cv::Scalar get_color_p(float value) {
+    // Clamp value between 0 and 1
+    value = std::clamp(value, 0.0f, 1.0f);
+
+    uchar r, g, b = 0;
+    if (value < 0.5f) {
+        // Interpolate between red and yellow
+        float t = value / 0.5f;
+        r = 255;
+        g = (255 * t);
+    } else {
+        // Interpolate between yellow and green
+        float t = (value - 0.5f) / 0.5f;
+        r = (255 * (1.0f - t));
+        g = 255;
+    }
+
+    return cv::Scalar(r, g, b, 255); // OpenCV uses BGRA format
+}
 
 void draw_box(float   x1f, 
               float   y1f, 
@@ -58,13 +77,11 @@ void draw_target(float   x1f,
     //get detection box center
     int cx = (x1+x2) / 2;
     int cy = (y1+y2) / 2;
-    cv::Scalar color;
     
     //Set color according to p value
-    if (p <= 0.5) color = cv::Scalar(255,20,20,255);
-    if (p > 0.5 && p < 0.8) color = cv::Scalar(230,230,20,255);
-    if (p >= 0.8) color = cv::Scalar(20,255,20,255);
+    cv::Scalar color = get_color_p(p);
     
+     
     //mark humans with triangles
     if (cls == 0){
         cv::Point p1(cx, cy+0.6666*fw);
@@ -87,10 +104,8 @@ void listen_zmq(const std::string        &bind_address,
 
     zmq::context_t context(1);
 
-    zmq::socket_t socket(context, zmq::socket_type::sub);
+    zmq::socket_t socket(context, zmq::socket_type::pull);
     socket.bind(bind_address.c_str());
-
-    socket.set(zmq::sockopt::subscribe, "");
 
     std::cout << "ZMQ: listening on " << bind_address << "\n";
     uint64_t count = 0;
@@ -159,13 +174,16 @@ void listen_zmq(const std::string        &bind_address,
                 temp[name].copyTo(overlays[name]);
                 temp[name].setTo(cv::Scalar(0,0,0,0));
                 last_ts[name] = ts;
+       
             }
             if (ts < last_ts[name]){ //skip data arriving late.
-                 //std::cout << "Skipping old data for cam " << name << "\n";
                  continue; 
             }             
             //draw boxes to the temp overlay
-            draw_target(x1,y1,x2,y2,t,p,temp[name]);
+            if(t != 255){
+                draw_target(x1,y1,x2,y2,t,p,temp[name]);
+                //std::cout << "ZMQ: " <<  name <<  " " << ts << " " << t << " " << p << "\n";
+            }
             
 
         } 

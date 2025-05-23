@@ -152,7 +152,7 @@ int main(int argc, char* argv[]) {
   bool output_video = output.open("appsrc do-timestamp=true is-live=true ! queue leaky=1 ! videorate ! videoconvert n-threads=2 ! video/x-raw,format=NV12,framerate=30/1 ! "
                                   "queue ! tee name=raw raw. ! "
                                   "queue ! vaapih264enc bitrate=40000 keyframe-period=1 ! h264parse config-interval=-1 ! rtph264pay mtu=65000 ! multiudpsink clients=127.0.0.1:7600,127.0.0.1:7601 sync=false raw. ! "
-                       				    "queue ! vaapih264enc bitrate=15000  keyframe-period=30 ! h264parse config-interval=-1 ! mpegtsmux ! filesink location=./output_"+getUnixTimestampAsString()+".ts async=true sync=false", 
+                       				    "queue ! vaapih264enc bitrate=15000 keyframe-period=30 ! h264parse config-interval=-1 ! mpegtsmux ! filesink location=./output_"+getUnixTimestampAsString()+".ts async=true sync=false", 
 				  cv::CAP_GSTREAMER, 0, 30, cv::Size(1280,720), true);
   if (!output_video) std::cout << "Output stream failed to start" << std::endl;
   //load video surfaces
