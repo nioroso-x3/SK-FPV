@@ -73,7 +73,9 @@ void draw_target(float   x1f,
     //calculate proportional marker size and line width
     int fw = w/32;
     int lw = w/480;
-
+    if (lw < 2){
+        lw = 2;
+    }
     //get detection box center
     int cx = (x1+x2) / 2;
     int cy = (y1+y2) / 2;
