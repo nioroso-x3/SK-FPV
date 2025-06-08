@@ -80,11 +80,18 @@ void start_mavlink_thread(){
   telemetry.subscribe_distance_sensor([](Telemetry::DistanceSensor sensor){
       vh_rngfnd = sensor;
   });
-  
+  //System Time
   passthrough.subscribe_message(MAVLINK_MSG_ID_SYSTEM_TIME,[](const mavlink_message_t &msg){
     mavlink_system_time_t systemtime;
     mavlink_msg_system_time_decode(&msg,&systemtime);
     gps_time = systemtime.time_unix_usec;
+  });
+  //AoA and SSA
+  passthrough.subscribe_message(MAVLINK_MSG_ID_AOA_SSA,[](const mavlink_message_t &msg){
+    mavlink_aoa_ssa_t aoa_ssa;
+    mavlink_msg_aoa_ssa_decode(&msg,&aoa_ssa);
+    aoa = aoa_ssa.AOA;
+    ssa = aoa_ssa.SSA;
   });
 
 

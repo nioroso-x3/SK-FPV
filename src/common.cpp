@@ -144,6 +144,10 @@ std::map<std::string,std::vector<int>> wfb_rx;
 //drone time
 uint64_t gps_time = 0;
 
+//aoa and ssa
+float aoa = 0.0f;
+float ssa = 0.0f;
+
 int cam_selector = 0;
 
 

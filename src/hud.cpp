@@ -4,7 +4,7 @@
 #include <cairomm/surface.h>
 #include <sstream>
 #include <ctime>
-
+#define pix_deg 32
 using namespace sk;
 using namespace mavsdk;
 
@@ -530,23 +530,32 @@ void drawDateTime(const Cairo::RefPtr<Cairo::Context>& cr, float x, float y, uin
 }
 
 void drawLTERadio(const Cairo::RefPtr<Cairo::Context>& cr, float x, float y, uint8_t s, uint8_t fr, uint8_t t, uint8_t q){
-    std::string label("UNK");
-    if (t == 1) label = std::string("GSM");
-    if (t == 2) label = std::string("CDM");
-    if (t == 3) label = std::string("WCD");
-    if (t == 4) label = std::string("LTE");
-    int s_perc = -1;
-    if (q < 255) s_perc = int(100 * (q/254.0));
-    if (s == 12){
-       drawSimpleLabel(cr,x,y, label + std::string("%"), s_perc, 0, 30.0f);
-    }
-    else{
-       drawSimpleLabel(cr,x,y, label + std::to_string(s), fr, 0, 30.0f);
-    }
+  std::string label("UNK");
+  if (t == 1) label = std::string("GSM");
+  if (t == 2) label = std::string("CDM");
+  if (t == 3) label = std::string("WCD");
+  if (t == 4) label = std::string("LTE");
+  int s_perc = -1;
+  if (q < 255) s_perc = int(100 * (q/254.0));
+  if (s == 12){
+     drawSimpleLabel(cr,x,y, label + std::string("%"), s_perc, 0, 30.0f);
+  }
+  else{
+     drawSimpleLabel(cr,x,y, label + std::to_string(s), fr, 0, 30.0f);
+  }
+}
 
+void drawAoA_SSA(const Cairo::RefPtr<Cairo::Context>& cr,
+                 float x, float y, 
+                 float aoa, float ssa){
 
-
-
+  cr->save();
+  cr->set_line_width(2.5);
+  cr->translate(x,y);
+  cr->begin_new_path();
+  cr->arc(ssa*pix_deg,aoa*pix_deg, HUD_w/100,0, 2*M_PI);
+  cr->stroke();
+  cr->restore();
 }
 
 void draw_cairo_hud()
@@ -557,7 +566,6 @@ void draw_cairo_hud()
   auto cr = Cairo::Context::create(surface);
   cr->save(); // Save the initial state of the Cairo context
   while(true){
-    float pix_deg = 32;
     float roll = std::isnan(vh_att.roll_deg) ? 0.0 : -vh_att.roll_deg;
     float pitch = std::isnan(vh_att.pitch_deg) ? 0.0 : vh_att.pitch_deg;
     float head = std::isnan(vh_att.yaw_deg) ? 0.0 : vh_att.yaw_deg ;
@@ -589,7 +597,8 @@ void draw_cairo_hud()
     uint8_t c_lte_f_reason = lte_f_reason;
     uint8_t c_lte_type = lte_type;
     uint8_t c_lte_qual = lte_qual;
-   
+    float c_aoa = aoa;
+    float c_ssa = ssa;
 
     /*int wfb_rx_avg_rssi = 0;
     int video_streams = 0;
@@ -625,6 +634,7 @@ void draw_cairo_hud()
     //begin drawing elements
     //drawFlightPath(cr,HUD_w/2.0,HUD_h/2.0); need to figure out how to calculate the projection to the hud
     drawAircraftSymbol(cr,HUD_w/2.0,HUD_h/2.0);
+    drawAoA_SSA(cr,HUD_w/2.0,HUD_h/2.0,aoa,ssa);
     drawHeading(cr,HUD_w/2.0,5,60,head,false); 
     drawVerticalScale(cr,4,HUD_h/2.0,as,40,false);
     drawSimpleLabel(cr,0,(HUD_h/2.0)+50,"GS",gs,1,30.0f);
@@ -647,10 +657,9 @@ void draw_cairo_hud()
 
     // Roll transformation
     cr->rotate(roll * (M_PI/180.0));
+
     // Pitch transformation
     cr->translate(0, pitch * pix_deg);
-
-    
 
     // Draw artificial horizon ladder
     drawHorizonLadder(cr,0,0,pix_deg);

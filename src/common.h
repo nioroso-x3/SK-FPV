@@ -110,6 +110,10 @@ extern Telemetry::DistanceSensor vh_rngfnd;
 //gps time
 extern uint64_t gps_time;
 
+//aoa and ssa
+extern float aoa;
+extern float ssa;
+
 //main camera selector
 extern int cam_selector;
 

@@ -23,6 +23,7 @@ Linux users will need to install some pre-requisites:
 * OpenCV with gstreamer, Ubuntu 24.10 has it enabled by default
 
 * MAVSDK 2.x, 3.0 is not compatible yet. (https://github.com/mavlink/MAVSDK)
+  Set "MAVLINK_DIALECT" in the CMakeLists.txt to "ardupilotmega", since the HUD needs the AoA and SSA messages.
 
 * libcairomm-1.0 for the HUD.
 
