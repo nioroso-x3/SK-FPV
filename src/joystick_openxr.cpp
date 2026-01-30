@@ -163,6 +163,7 @@ void OpenXRJoystickInput::processButton(int button_code, bool pressed) {
     // Handle button mappings
     auto it = button_mappings.find(button_code);
     if (it != button_mappings.end()) {
+        std::cout << "  Found mapping for button " << button_code << std::endl;
         ButtonMapping& mapping = it->second;
 
         // Handle single press callback
@@ -188,6 +189,8 @@ void OpenXRJoystickInput::processButton(int button_code, bool pressed) {
         if (mapping.rc_channel >= 0 && mapping.rc_channel < 16) {
             state.rc_channels[mapping.rc_channel] = pressed ? mapping.on_value : mapping.off_value;
         }
+    } else {
+        std::cout << "  NO mapping found for button " << button_code << std::endl;
     }
 
     // Update general button state arrays (map OpenXR buttons to indices 0-15)
