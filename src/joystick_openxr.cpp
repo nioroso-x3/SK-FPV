@@ -17,8 +17,6 @@ OpenXRJoystickInput::~OpenXRJoystickInput() {
 }
 
 bool OpenXRJoystickInput::initialize() {
-    std::cout << "OpenXR joystick initialization started..." << std::endl;
-
     // Load configuration-based mappings
     loadConfigurationMappings();
 
@@ -30,9 +28,6 @@ bool OpenXRJoystickInput::initialize() {
     state.connected = true;
 
     std::cout << "OpenXR joystick initialized: " << state.device_name << std::endl;
-    std::cout << "Loaded " << axis_mappings.size() << " axis mappings and "
-              << button_mappings.size() << " button mappings" << std::endl;
-
     return true;
 }
 
@@ -50,14 +45,6 @@ void OpenXRJoystickInput::start() {
 
             // Copy state to global
             g_joystick_state = state;
-
-            // Debug RC values occasionally
-            static int rc_debug_counter = 0;
-            if (rc_debug_counter % 200 == 0) { // Every 10 seconds at 20Hz
-                std::cout << "RC values: [0]=" << state.rc_channels[0] << " [1]=" << state.rc_channels[1]
-                          << " [2]=" << state.rc_channels[2] << " [3]=" << state.rc_channels[3] << std::endl;
-            }
-            rc_debug_counter++;
 
             // Update at configured rate (default 20Hz = 50ms)
             int update_rate = g_joystick_config ? g_joystick_config->getSettings().update_rate_hz : 20;
@@ -85,23 +72,6 @@ void OpenXRJoystickInput::updateControllerState() {
     bool any_tracked = (left_controller && (left_controller->tracked & button_state_active)) ||
                       (right_controller && (right_controller->tracked & button_state_active));
 
-    // Debug output for controller detection
-    static int debug_counter = 0;
-    if (debug_counter % 100 == 0) { // Print every ~5 seconds at 20Hz
-        std::cout << "OpenXR Debug: Left tracked=" << (left_controller ? (bool)(left_controller->tracked & button_state_active) : false)
-                  << ", Right tracked=" << (right_controller ? (bool)(right_controller->tracked & button_state_active) : false)
-                  << ", any_tracked=" << any_tracked << std::endl;
-
-        if (left_controller) {
-            std::cout << "  Left controller: stick=(" << left_controller->stick.x << "," << left_controller->stick.y
-                      << ") trigger=" << left_controller->trigger << " x1=" << (bool)(left_controller->x1 & button_state_active) << std::endl;
-        }
-        if (right_controller) {
-            std::cout << "  Right controller: stick=(" << right_controller->stick.x << "," << right_controller->stick.y
-                      << ") trigger=" << right_controller->trigger << " x1=" << (bool)(right_controller->x1 & button_state_active) << std::endl;
-        }
-    }
-    debug_counter++;
 
     state.connected = any_tracked;
 
@@ -163,20 +133,13 @@ void OpenXRJoystickInput::updateControllerState() {
 }
 
 void OpenXRJoystickInput::processButton(int button_code, bool pressed) {
-    // Debug output for button presses
-    if (pressed) {
-        std::cout << "OpenXR Button pressed: " << button_code << std::endl;
-    }
-
     // Handle button mappings
     auto it = button_mappings.find(button_code);
     if (it != button_mappings.end()) {
-        std::cout << "  Found mapping for button " << button_code << std::endl;
         ButtonMapping& mapping = it->second;
 
         // Handle single press callback
         if (pressed && !mapping.was_pressed && mapping.callback) {
-            std::cout << "Calling OpenXR button callback function" << std::endl;
             mapping.callback();
         }
 
@@ -185,10 +148,8 @@ void OpenXRJoystickInput::processButton(int button_code, bool pressed) {
             mapping.is_held = true;
             mapping.hold_start_time = std::chrono::steady_clock::now();
             mapping.last_hold_send = mapping.hold_start_time;
-            std::cout << "Starting OpenXR button hold for continuous sending" << std::endl;
         } else if (!pressed && mapping.was_pressed) {
             mapping.is_held = false;
-            std::cout << "OpenXR button hold ended" << std::endl;
         }
 
         mapping.was_pressed = pressed;
@@ -197,8 +158,6 @@ void OpenXRJoystickInput::processButton(int button_code, bool pressed) {
         if (mapping.rc_channel >= 0 && mapping.rc_channel < 16) {
             state.rc_channels[mapping.rc_channel] = pressed ? mapping.on_value : mapping.off_value;
         }
-    } else {
-        std::cout << "  NO mapping found for button " << button_code << std::endl;
     }
 
     // Update general button state arrays (map OpenXR buttons to indices 0-15)
@@ -347,8 +306,6 @@ void OpenXRJoystickInput::setAxisRange(int axis_code, int min_val, int max_val) 
 }
 
 void OpenXRJoystickInput::loadConfigurationMappings() {
-    std::cout << "OpenXR: Loading configuration mappings..." << std::endl;
-
     if (!g_joystick_config) {
         std::cerr << "ERROR: No joystick configuration available! Using defaults." << std::endl;
         // Load defaults
@@ -374,14 +331,9 @@ void OpenXRJoystickInput::loadConfigurationMappings() {
     };
 
     // Load axis mappings from config
-    std::cout << "OpenXR: Found " << g_joystick_config->getAxisConfigs().size() << " axis configs in main config" << std::endl;
-
     for (const auto& axis_config : g_joystick_config->getAxisConfigs()) {
-        std::cout << "  Checking axis config: " << axis_config.name << " code=" << axis_config.evdev_code << std::endl;
-
         // Check if this is already an OpenXR code (direct mapping)
         if (axis_config.evdev_code >= 1000 && axis_config.evdev_code <= 1010) {
-            std::cout << "    -> Direct OpenXR axis code " << axis_config.evdev_code << std::endl;
 
             AxisMapping mapping;
             mapping.rc_channel = axis_config.rc_channel;
@@ -395,14 +347,10 @@ void OpenXRJoystickInput::loadConfigurationMappings() {
             mapping.last_update_time = std::chrono::steady_clock::time_point{};
 
             axis_mappings[axis_config.evdev_code] = mapping;
-            std::cout << "Loaded OpenXR axis mapping: openxr=" << axis_config.evdev_code
-                      << " rc_channel=" << axis_config.rc_channel
-                      << " is_rate=" << axis_config.is_rate_axis << std::endl;
         } else {
             // Try evdev to OpenXR mapping for libevdev compatibility
             auto it = evdev_to_openxr.find(axis_config.evdev_code);
             if (it != evdev_to_openxr.end()) {
-                std::cout << "    -> Mapped evdev to OpenXR code " << it->second << std::endl;
                 AxisMapping mapping;
                 mapping.rc_channel = axis_config.rc_channel;
                 mapping.invert = axis_config.invert;
@@ -415,12 +363,6 @@ void OpenXRJoystickInput::loadConfigurationMappings() {
                 mapping.last_update_time = std::chrono::steady_clock::time_point{};
 
                 axis_mappings[it->second] = mapping;
-                std::cout << "Loaded OpenXR axis mapping: evdev=" << axis_config.evdev_code
-                          << " -> openxr=" << it->second
-                          << " rc_channel=" << axis_config.rc_channel
-                          << " is_rate=" << axis_config.is_rate_axis << std::endl;
-            } else {
-                std::cout << "    -> No mapping found for axis code " << axis_config.evdev_code << std::endl;
             }
         }
     }
@@ -437,14 +379,9 @@ void OpenXRJoystickInput::loadConfigurationMappings() {
     };
 
     // Load button mappings from config
-    std::cout << "OpenXR: Found " << g_joystick_config->getButtonConfigs().size() << " button configs in main config" << std::endl;
-
     for (const auto& button_config : g_joystick_config->getButtonConfigs()) {
-        std::cout << "  Checking button config: " << button_config.name << " code=" << button_config.evdev_code << std::endl;
-
         // Check if this is already an OpenXR code (direct mapping)
         if (button_config.evdev_code >= 2000 && button_config.evdev_code <= 2010) {
-            std::cout << "    -> Direct OpenXR code " << button_config.evdev_code << std::endl;
 
             ButtonMapping mapping;
             mapping.rc_channel = button_config.rc_channel;
@@ -459,7 +396,6 @@ void OpenXRJoystickInput::loadConfigurationMappings() {
                     // Flight mode functions use hold callback for continuous sending
                     if (button_config.function.find("mode_") == 0) {
                         mapping.hold_callback = func;
-                        std::cout << "Assigned " << button_config.function << " as hold callback (continuous send)" << std::endl;
                     } else {
                         mapping.callback = func;
                     }
@@ -467,14 +403,10 @@ void OpenXRJoystickInput::loadConfigurationMappings() {
             }
 
             button_mappings[button_config.evdev_code] = mapping;
-            std::cout << "Loaded OpenXR button mapping: openxr=" << button_config.evdev_code
-                      << " function=" << button_config.function
-                      << " has_callback=" << (mapping.callback ? "yes" : "no") << std::endl;
         } else {
             // Try evdev to OpenXR mapping for libevdev compatibility
             auto it = evdev_to_openxr_buttons.find(button_config.evdev_code);
             if (it != evdev_to_openxr_buttons.end()) {
-                std::cout << "    -> Mapped evdev to OpenXR code " << it->second << std::endl;
                 ButtonMapping mapping;
                 mapping.rc_channel = button_config.rc_channel;
                 mapping.on_value = button_config.on_value;
@@ -488,7 +420,6 @@ void OpenXRJoystickInput::loadConfigurationMappings() {
                         // Flight mode functions use hold callback for continuous sending
                         if (button_config.function.find("mode_") == 0) {
                             mapping.hold_callback = func;
-                            std::cout << "Assigned " << button_config.function << " as hold callback (continuous send)" << std::endl;
                         } else {
                             mapping.callback = func;
                         }
@@ -496,12 +427,6 @@ void OpenXRJoystickInput::loadConfigurationMappings() {
                 }
 
                 button_mappings[it->second] = mapping;
-                std::cout << "Loaded OpenXR button mapping: evdev=" << button_config.evdev_code
-                          << " -> openxr=" << it->second
-                          << " function=" << button_config.function
-                          << " has_callback=" << (mapping.callback ? "yes" : "no") << std::endl;
-            } else {
-                std::cout << "    -> No mapping found for button code " << button_config.evdev_code << std::endl;
             }
         }
     }
@@ -517,8 +442,6 @@ void OpenXRJoystickInput::initializeRCChannels() {
     for (auto& [openxr_code, mapping] : axis_mappings) {
         if (mapping.is_rate_axis && mapping.rc_channel >= 0 && mapping.rc_channel < 16) {
             state.rc_channels[mapping.rc_channel] = mapping.rate_init_value;
-            std::cout << "Initialized OpenXR rate axis RC channel " << mapping.rc_channel
-                      << " to " << mapping.rate_init_value << "μs" << std::endl;
         }
     }
 
