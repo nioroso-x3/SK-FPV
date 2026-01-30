@@ -6,11 +6,15 @@
 #include "wfb_stats.h"
 #include "targets.h"
 #include "joystick_config.h"
+#include "joystick_openxr.h"
 #include <nlohmann/json.hpp>
 #include <fstream>
 
 using namespace sk;
 using namespace mavsdk;
+
+// Global OpenXR joystick instance
+OpenXRJoystickInput* g_openxr_joystick = nullptr;
 
 // Video streaming configuration
 struct VideoStreamConfig {
@@ -194,22 +198,49 @@ void joystick_thread(){
   JoystickConfig::registerFunction("mode_loiter", set_flight_mode_loiter);
   JoystickConfig::registerFunction("mode_guided", set_flight_mode_guided);
 
-  // Initialize joystick
-  g_joystick = new JoystickInput();
+  // Determine joystick type from configuration
+  JoystickType joystick_type = g_joystick_config ? g_joystick_config->getSettings().type : JoystickType::LIBEVDEV;
 
-  if (!g_joystick->initialize()) {
-    std::cerr << "Failed to initialize joystick" << std::endl;
-    delete g_joystick;
-    g_joystick = nullptr;
-    return;
-  }
+  if (joystick_type == JoystickType::OPENXR) {
+    std::cout << "Using OpenXR/VR controller input" << std::endl;
 
-  // Start joystick input processing
-  g_joystick->start();
+    // Initialize OpenXR joystick
+    g_openxr_joystick = new OpenXRJoystickInput();
 
-  // Keep thread alive while joystick is running
-  while (g_joystick && g_joystick->getState().connected) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    if (!g_openxr_joystick->initialize()) {
+      std::cerr << "Failed to initialize OpenXR joystick" << std::endl;
+      delete g_openxr_joystick;
+      g_openxr_joystick = nullptr;
+      return;
+    }
+
+    // Start OpenXR joystick input processing
+    g_openxr_joystick->start();
+
+    // Keep thread alive while joystick is running
+    while (g_openxr_joystick && g_openxr_joystick->getState().connected) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+  } else {
+    std::cout << "Using libevdev external joystick input" << std::endl;
+
+    // Initialize libevdev joystick (original implementation)
+    g_joystick = new JoystickInput();
+
+    if (!g_joystick->initialize()) {
+      std::cerr << "Failed to initialize joystick" << std::endl;
+      delete g_joystick;
+      g_joystick = nullptr;
+      return;
+    }
+
+    // Start joystick input processing
+    g_joystick->start();
+
+    // Keep thread alive while joystick is running
+    while (g_joystick && g_joystick->getState().connected) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
   }
 
   std::cout << "Joystick thread exited" << std::endl;

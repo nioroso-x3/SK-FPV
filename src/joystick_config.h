@@ -29,12 +29,18 @@ struct ButtonConfig {
     std::string function = "";  // Function name for hashmap lookup
 };
 
+enum class JoystickType {
+    LIBEVDEV = 0,  // External joystick via libevdev
+    OPENXR = 1     // OpenXR/VR controllers
+};
+
 struct JoystickSettings {
     float global_deadzone = 0.05f;
     int update_rate_hz = 20;
     bool enable_rc_override = true;
     int rc_disable_switch_channel = -1;  // -1 = disabled, 0-15 = RC channel to monitor
     uint16_t rc_disable_switch_threshold = 1700;  // Above this value = force RC override OFF
+    JoystickType type = JoystickType::LIBEVDEV;  // Default to libevdev
 };
 
 class JoystickConfig {

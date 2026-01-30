@@ -2,7 +2,8 @@
   "joystick_settings": {
     "global_deadzone": 0.05,
     "update_rate_hz": 20,
-    "enable_rc_override": true
+    "enable_rc_override": true,
+    "type": "libevdev"
   },
   "axis_mappings": [
     {

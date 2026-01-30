@@ -1,4 +1,5 @@
 #include "joystick_config.h"
+#include "joystick_openxr.h"
 #include <fstream>
 #include <iostream>
 #include <linux/input-event-codes.h>
@@ -33,6 +34,16 @@ bool JoystickConfig::loadFromFile(const std::string& filename) {
             if (js.contains("enable_rc_override")) settings.enable_rc_override = js["enable_rc_override"];
             if (js.contains("rc_disable_switch_channel")) settings.rc_disable_switch_channel = js["rc_disable_switch_channel"];
             if (js.contains("rc_disable_switch_threshold")) settings.rc_disable_switch_threshold = js["rc_disable_switch_threshold"];
+
+            // Load joystick type
+            if (js.contains("type")) {
+                std::string type_str = js["type"];
+                if (type_str == "openxr") {
+                    settings.type = JoystickType::OPENXR;
+                } else if (type_str == "libevdev") {
+                    settings.type = JoystickType::LIBEVDEV;
+                }
+            }
         }
 
         // Load axis configurations
@@ -163,6 +174,25 @@ int JoystickConfig::parseEvdevCode(const std::string& code_str) const {
     if (code_str == "BTN_THUMBL") return BTN_THUMBL;
     if (code_str == "BTN_THUMBR") return BTN_THUMBR;
 
+    // Handle OpenXR axis codes
+    if (code_str == "OPENXR_LEFT_STICK_X") return OPENXR_LEFT_STICK_X;
+    if (code_str == "OPENXR_LEFT_STICK_Y") return OPENXR_LEFT_STICK_Y;
+    if (code_str == "OPENXR_RIGHT_STICK_X") return OPENXR_RIGHT_STICK_X;
+    if (code_str == "OPENXR_RIGHT_STICK_Y") return OPENXR_RIGHT_STICK_Y;
+    if (code_str == "OPENXR_LEFT_TRIGGER") return OPENXR_LEFT_TRIGGER;
+    if (code_str == "OPENXR_RIGHT_TRIGGER") return OPENXR_RIGHT_TRIGGER;
+    if (code_str == "OPENXR_LEFT_GRIP") return OPENXR_LEFT_GRIP;
+    if (code_str == "OPENXR_RIGHT_GRIP") return OPENXR_RIGHT_GRIP;
+
+    // Handle OpenXR button codes
+    if (code_str == "OPENXR_LEFT_X1") return OPENXR_LEFT_X1;
+    if (code_str == "OPENXR_LEFT_X2") return OPENXR_LEFT_X2;
+    if (code_str == "OPENXR_LEFT_STICK_CLICK") return OPENXR_LEFT_STICK_CLICK;
+    if (code_str == "OPENXR_RIGHT_X1") return OPENXR_RIGHT_X1;
+    if (code_str == "OPENXR_RIGHT_X2") return OPENXR_RIGHT_X2;
+    if (code_str == "OPENXR_RIGHT_STICK_CLICK") return OPENXR_RIGHT_STICK_CLICK;
+    if (code_str == "OPENXR_MENU_BUTTON") return OPENXR_MENU_BUTTON;
+
     // Handle BTN_GAMEPAD+N format
     if (code_str.find("BTN_GAMEPAD+") == 0) {
         try {
@@ -215,12 +245,14 @@ bool JoystickConfig::saveToFile(const std::string& filename) const {
         nlohmann::json j;
 
         // Save settings
+        std::string type_str = (settings.type == JoystickType::OPENXR) ? "openxr" : "libevdev";
         j["joystick_settings"] = {
             {"global_deadzone", settings.global_deadzone},
             {"update_rate_hz", settings.update_rate_hz},
             {"enable_rc_override", settings.enable_rc_override},
             {"rc_disable_switch_channel", settings.rc_disable_switch_channel},
-            {"rc_disable_switch_threshold", settings.rc_disable_switch_threshold}
+            {"rc_disable_switch_threshold", settings.rc_disable_switch_threshold},
+            {"type", type_str}
         };
 
         // Save axis mappings
@@ -288,6 +320,26 @@ std::string JoystickConfig::evdevCodeToString(int code) const {
         case BTN_THUMBL: return "BTN_THUMBL";      // 317
         case BTN_THUMBR: return "BTN_THUMBR";      // 318
         case BTN_JOYSTICK: return "BTN_JOYSTICK";
+
+        // OpenXR axis codes
+        case OPENXR_LEFT_STICK_X: return "OPENXR_LEFT_STICK_X";
+        case OPENXR_LEFT_STICK_Y: return "OPENXR_LEFT_STICK_Y";
+        case OPENXR_RIGHT_STICK_X: return "OPENXR_RIGHT_STICK_X";
+        case OPENXR_RIGHT_STICK_Y: return "OPENXR_RIGHT_STICK_Y";
+        case OPENXR_LEFT_TRIGGER: return "OPENXR_LEFT_TRIGGER";
+        case OPENXR_RIGHT_TRIGGER: return "OPENXR_RIGHT_TRIGGER";
+        case OPENXR_LEFT_GRIP: return "OPENXR_LEFT_GRIP";
+        case OPENXR_RIGHT_GRIP: return "OPENXR_RIGHT_GRIP";
+
+        // OpenXR button codes
+        case OPENXR_LEFT_X1: return "OPENXR_LEFT_X1";
+        case OPENXR_LEFT_X2: return "OPENXR_LEFT_X2";
+        case OPENXR_LEFT_STICK_CLICK: return "OPENXR_LEFT_STICK_CLICK";
+        case OPENXR_RIGHT_X1: return "OPENXR_RIGHT_X1";
+        case OPENXR_RIGHT_X2: return "OPENXR_RIGHT_X2";
+        case OPENXR_RIGHT_STICK_CLICK: return "OPENXR_RIGHT_STICK_CLICK";
+        case OPENXR_MENU_BUTTON: return "OPENXR_MENU_BUTTON";
+
         default:
             if (code >= BTN_GAMEPAD && code < BTN_GAMEPAD + 32) {
                 return "BTN_GAMEPAD+" + std::to_string(code - BTN_GAMEPAD);

@@ -1,0 +1,135 @@
+{
+  "joystick_settings": {
+    "global_deadzone": 0.05,
+    "update_rate_hz": 20,
+    "enable_rc_override": true,
+    "type": "openxr"
+  },
+  "axis_mappings": [
+    {
+      "name": "left_stick_x",
+      "evdev_code": "OPENXR_LEFT_STICK_X",
+      "rc_channel": 3,
+      "min_value": -1,
+      "max_value": 1,
+      "invert": false,
+      "deadzone": 0.05,
+      "is_rate_axis": false,
+      "expo": 80.0
+    },
+    {
+      "name": "left_stick_y",
+      "evdev_code": "OPENXR_LEFT_STICK_Y",
+      "rc_channel": 2,
+      "min_value": -1,
+      "max_value": 1,
+      "invert": true,
+      "deadzone": 0.05,
+      "is_rate_axis": true,
+      "rate_scale": 800.0,
+      "rate_init_value": 1000
+    },
+    {
+      "name": "right_stick_x",
+      "evdev_code": "OPENXR_RIGHT_STICK_X",
+      "rc_channel": 0,
+      "min_value": -1,
+      "max_value": 1,
+      "invert": false,
+      "deadzone": 0.05,
+      "is_rate_axis": false,
+      "expo": 80.0
+    },
+    {
+      "name": "right_stick_y",
+      "evdev_code": "OPENXR_RIGHT_STICK_Y",
+      "rc_channel": 1,
+      "min_value": -1,
+      "max_value": 1,
+      "invert": true,
+      "deadzone": 0.05,
+      "is_rate_axis": false,
+      "expo": 80.0
+    },
+    {
+      "name": "left_trigger",
+      "evdev_code": "OPENXR_LEFT_TRIGGER",
+      "rc_channel": 4,
+      "min_value": 0,
+      "max_value": 1,
+      "invert": false,
+      "deadzone": 0.02,
+      "is_rate_axis": false,
+      "expo": 0.0
+    },
+    {
+      "name": "right_trigger",
+      "evdev_code": "OPENXR_RIGHT_TRIGGER",
+      "rc_channel": 5,
+      "min_value": 0,
+      "max_value": 1,
+      "invert": false,
+      "deadzone": 0.02,
+      "is_rate_axis": false,
+      "expo": 0.0
+    }
+  ],
+  "button_mappings": [
+    {
+      "name": "left_controller_x1",
+      "evdev_code": "OPENXR_LEFT_X1",
+      "rc_channel": -1,
+      "on_value": 2000,
+      "off_value": 1000,
+      "function": "mode_fbwa"
+    },
+    {
+      "name": "left_controller_x2",
+      "evdev_code": "OPENXR_LEFT_X2",
+      "rc_channel": -1,
+      "on_value": 2000,
+      "off_value": 1000,
+      "function": "mode_cruise"
+    },
+    {
+      "name": "right_controller_x1",
+      "evdev_code": "OPENXR_RIGHT_X1",
+      "rc_channel": -1,
+      "on_value": 2000,
+      "off_value": 1000,
+      "function": "mode_manual"
+    },
+    {
+      "name": "right_controller_x2",
+      "evdev_code": "OPENXR_RIGHT_X2",
+      "rc_channel": -1,
+      "on_value": 2000,
+      "off_value": 1000,
+      "function": "mode_stabilize"
+    },
+    {
+      "name": "left_stick_click",
+      "evdev_code": "OPENXR_LEFT_STICK_CLICK",
+      "rc_channel": -1,
+      "on_value": 2000,
+      "off_value": 1000,
+      "function": "mode_auto"
+    },
+    {
+      "name": "right_stick_click",
+      "evdev_code": "OPENXR_RIGHT_STICK_CLICK",
+      "rc_channel": -1,
+      "on_value": 2000,
+      "off_value": 1000,
+      "function": "recenter_cameras"
+    },
+    {
+      "name": "menu_button",
+      "evdev_code": "OPENXR_MENU_BUTTON",
+      "rc_channel": -1,
+      "on_value": 2000,
+      "off_value": 1000,
+      "function": "hud_toggle"
+    }
+  ]
+}

@@ -87,6 +87,7 @@ add_executable( SK_FPV
   src/targets.cpp
   src/joystick_input.cpp
   src/joystick_config.cpp
+  src/joystick_openxr.cpp
 )
 
 # Link to dependencies
