@@ -201,6 +201,8 @@ void joystick_thread(){
   // Determine joystick type from configuration
   JoystickType joystick_type = g_joystick_config ? g_joystick_config->getSettings().type : JoystickType::LIBEVDEV;
 
+  std::cout << "Joystick configuration type: " << (joystick_type == JoystickType::OPENXR ? "OPENXR" : "LIBEVDEV") << std::endl;
+
   if (joystick_type == JoystickType::OPENXR) {
     std::cout << "Using OpenXR/VR controller input" << std::endl;
 

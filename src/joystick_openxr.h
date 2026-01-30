@@ -43,27 +43,6 @@ public:
     void setAxisRange(int axis_code, int min_val, int max_val);
 
 private:
-    enum OpenXRAxis {
-        OPENXR_LEFT_STICK_X = 1000,
-        OPENXR_LEFT_STICK_Y = 1001,
-        OPENXR_RIGHT_STICK_X = 1002,
-        OPENXR_RIGHT_STICK_Y = 1003,
-        OPENXR_LEFT_TRIGGER = 1004,
-        OPENXR_RIGHT_TRIGGER = 1005,
-        OPENXR_LEFT_GRIP = 1006,
-        OPENXR_RIGHT_GRIP = 1007
-    };
-
-    enum OpenXRButton {
-        OPENXR_LEFT_X1 = 2000,
-        OPENXR_LEFT_X2 = 2001,
-        OPENXR_LEFT_STICK_CLICK = 2002,
-        OPENXR_RIGHT_X1 = 2003,
-        OPENXR_RIGHT_X2 = 2004,
-        OPENXR_RIGHT_STICK_CLICK = 2005,
-        OPENXR_MENU_BUTTON = 2006
-    };
-
     struct AxisMapping {
         int rc_channel = -1;
         bool invert = false;
