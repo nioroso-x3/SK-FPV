@@ -54,6 +54,7 @@ find_library( WEBP_LIBRARIES webp )
 find_library( UV_LIBRARIES uv )
 find_library( ZMQ_LIBRARIES zmq )
 pkg_check_modules( CAIROMM REQUIRED IMPORTED_TARGET cairomm-1.0 )
+pkg_check_modules( LIBEVDEV REQUIRED IMPORTED_TARGET libevdev )
 include_directories( SYSTEM ${OpenCV_INCLUDE_DIRS} )
 include_directories( SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native/platform/default/include )
 include_directories( SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/maplibre-native/vendor/unordered_dense/include )
@@ -84,6 +85,8 @@ add_executable( SK_FPV
   src/fisheye.cpp
   src/framegrabber.cpp
   src/targets.cpp
+  src/joystick_input.cpp
+  src/joystick_config.cpp
 )
 
 # Link to dependencies
@@ -92,6 +95,7 @@ target_link_libraries( SK_FPV
   PUBLIC ${OpenCV_LIBS}
   MAVSDK::mavsdk
   PkgConfig::CAIROMM
+  PkgConfig::LIBEVDEV
   nlohmann_json::nlohmann_json
   ${ZMQ_LIBRARIES}
   ${MSGPACK_LIBRARIES}

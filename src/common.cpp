@@ -150,6 +150,12 @@ float ssa = 0.0f;
 
 int cam_selector = 0;
 
+//hud mode
+bool hud_follow_head = true;
+
+//rc mode
+bool rc_override = false;
+
 
 float get_heading(float lon1, float lat1, float lon2, float lat2) {
     lon1 *= M_PI/180.0;
@@ -166,11 +172,67 @@ float get_distance(float lon1, float lat1, float lon2, float lat2) {
     const float R = 6371000.0; // Earth's radius in meters
     float dLat = (lat2 - lat1) * M_PI / 180.0;
     float dLon = (lon2 - lon1) * M_PI / 180.0;
-    
+
     float a = sin(dLat / 2) * sin(dLat / 2) +
               cos(lat1 * M_PI / 180.0) * cos(lat2 * M_PI / 180.0) *
               sin(dLon / 2) * sin(dLon / 2);
     float c = 2 * atan2(sqrt(a), sqrt(1 - a));
-    
+
     return R * c; // Distance in meters
+}
+
+
+//helpers for camera surface recentering
+double quat2yaw(const quat& q){
+    float fx =  2.0f * (q.x*q.z + q.w*q.y);
+    float fz =  1.0f - 2.0f * (q.x*q.x + q.y*q.y);
+    return std::atan2(fx, fz);
+}
+
+vec3 rotate(const quat& q, const vec3& v){
+    const float tx = 2.0 * (q.y * v.z - q.z * v.y);
+    const float ty = 2.0 * (q.z * v.x - q.x * v.z);
+    const float tz = 2.0 * (q.x * v.y - q.y * v.x);
+
+    return {
+        v.x + q.w * tx + (q.y * tz - q.z * ty),
+        v.y + q.w * ty + (q.z * tx - q.x * tz),
+        v.z + q.w * tz + (q.x * ty - q.y * tx)
+    };
+}
+
+//stores initial surface poses
+std::map<std::string,pose_t> ori_poses;
+void recenter_cameras() {
+    const vec3 h_at = input_head()->position;
+    const quat h_ori = input_head()->orientation;
+    const float yaw = quat2yaw(h_ori);
+    const quat yaw_q = {0.0f, std::sin(yaw*0.5f), 0.0f, std::cos(yaw*0.5f)};
+    //std::cout << "Head pos: " << h_at.x << " " << h_at.y << " " << h_at.z << std::endl;
+    //std::cout << "Head ori: " << h_ori.x << " " << h_ori.y << " " << h_ori.z << " " << h_ori.w << std::endl;
+    //std::cout << "Head yaw: " << yaw << std::endl;
+    //std::cout << "Head q_y: " << yaw_q.x << " " << yaw_q.y << " " << yaw_q.z << " " << yaw_q.w << std::endl;
+    if (ori_poses.size() == 0){
+        for(std::string name : vsurfaces.list_names()){
+            ori_poses[name] = vsurfaces.pose_ts[name];
+        }
+    }
+    for(std::string name : vsurfaces.list_names()){
+        pose_t    pose = ori_poses[name];
+        vec3 at = pose.position;
+        quat ori = pose.orientation;
+        //std::cout << name << " pos: " << at.x << " " << at.y << " " << at.z << std::endl;
+        //std::cout << name << " ori: " << ori.x << " " << ori.y << " " << ori.z << " " << ori.w << std::endl;
+        vec3 v = at - h_at;
+        vec3 vRot = rotate(yaw_q, v);
+        
+        at = h_at + vRot;
+        ori = ori * yaw_q;
+        //std::cout << name << " new pos: " << at.x << " " << at.y << " " << at.z << std::endl;
+        //std::cout << name << " new ori: " << ori.x << " " << ori.y << " " << ori.z << " " << ori.w << std::endl;
+        vsurfaces.pose_ts[name].position = at;
+        vsurfaces.pose_ts[name].orientation = ori;
+        
+    }
+
 }

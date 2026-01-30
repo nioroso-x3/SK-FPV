@@ -2,6 +2,7 @@
 
 //--color:color = 1,1,1,1
 //--tex_scale = 1
+//--darken_factor = 1
 //--diffuse = white
 //--mapX = gray
 //--mapY = gray
@@ -9,6 +10,7 @@
 
 float4 color;
 float tex_scale;
+float darken_factor;
 Texture2D diffuse : register(t0);
 SamplerState diffuse_s : register(s0);
 
@@ -55,12 +57,12 @@ float2 remap_uv = float2(new_u, new_v);
 if (new_u < 0.0 || new_u > 1.0 || new_v < 0.0 || new_v > 1.0)
     return float4(0, 0, 0, 1); // Black fill for out-of-bounds areas
 
-float4 ov_color = over.Sample(diffuse_s, input.uv);
+float4 ov_color = over.Sample(diffuse_s, remap_uv);
 if (ov_color.a >= 0.9){
-    return ov_color * input.color;
+    return ov_color * input.color * darken_factor;
 }
 
-return diffuse.Sample(diffuse_s, remap_uv) * input.color;
+return diffuse.Sample(diffuse_s, remap_uv) * input.color * darken_factor;
 }
 
 

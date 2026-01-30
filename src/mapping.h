@@ -24,6 +24,7 @@ class maplibre{
     maplibre(std::string apikey,std::string styleurl);
     ~maplibre();
     int set_point(float lat, float lon, int id, std::string iconName);
+    int delete_point(int id);
     int set_home(float lat, float lon);
     int get_map(cv::Mat* output, double lat, double lon, double bearing, double zoom);
     void add_icon(std::string name, std::string pngpath);

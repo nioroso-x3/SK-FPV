@@ -90,6 +90,41 @@ int maplibre::set_point(float lat, float lon, int id, std::string iconName) {
     return 0;
 }
 
+int maplibre::delete_point(int id) {
+    auto it = landmarks.find(id);
+    if (it == landmarks.end()) {
+        return -1;
+    }
+
+    landmarks.erase(it);
+
+    style::GeoJSONSource *source = (style::GeoJSONSource*)map_obj.getStyle().getSource("landmarks");
+
+    nlohmann::json features = nlohmann::json::array();
+    for (const auto& [id, point] : landmarks) {
+        nlohmann::json feature = {
+            {"type", "Feature"},
+            {"properties", {
+                {"id", id},
+                {"icon", "circle"}
+            }},
+            {"geometry", {
+                {"type", "Point"},
+                {"coordinates", {point.x, point.y}}
+            }}
+        };
+        features.push_back(feature);
+    }
+    nlohmann::json geojson = {
+        {"type", "FeatureCollection"},
+        {"features", features}
+    };
+    std::string strjson = geojson.dump();
+    auto parsed = mapbox::geojson::parse(strjson);
+    source->setGeoJSON(parsed);
+    return 0;
+}
+
 int maplibre::set_home(float lat, float lon) {
     style::GeoJSONSource *source = (style::GeoJSONSource*)map_obj.getStyle().getSource("home");
 

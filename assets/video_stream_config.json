@@ -1,0 +1,12 @@
+{
+  "video_streaming": {
+    "enabled": false,
+    "resolution": {
+      "width": 1280,
+      "height": 720
+    },
+    "fov": 54,
+    "capture_interval": 3,
+    "gstreamer_pipeline": "appsrc do-timestamp=true is-live=true ! queue leaky=1 ! videorate ! videoconvert ! video/x-raw,format=NV12,framerate=30/1 ! queue ! tee name=raw raw. ! queue ! vaapih264enc bitrate=40000 keyframe-period=1 ! h264parse config-interval=-1 ! rtph264pay mtu=65000 ! multiudpsink clients=127.0.0.1:7600,127.0.0.1:7601 sync=false raw. ! queue ! vaapih264enc bitrate=15000 keyframe-period=30 ! h264parse config-interval=-1 ! mpegtsmux ! filesink location=./output_{timestamp}.ts async=true sync=false"
+  }
+}

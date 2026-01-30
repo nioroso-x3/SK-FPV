@@ -12,7 +12,9 @@ The maps require a "style.json" file to load the map styles, I included a sample
 
 Copy everything in the "assets" folder to the same folder where the binary is.
 
-The headset output is transmitted as a 40mbps intra-only H264 rtp stream on port 7600 and a 4mbps lower quality stream on port 7601.
+Joystick support with direct mapping and expo, rate axes, and two position button positions. Buttons can also be used to trigger especial functions like recentering the camera surfaces.
+
+Default configuration done using a PS5 controller.
 
 ## Linux pre-requisites
 
@@ -32,6 +34,8 @@ Linux users will need to install some pre-requisites:
 * ZMQ C++ and msgpack-c to receive and display the target overlays. 
 
 * Some extra libraries for maplibre, cmake should find them all or show an error telling you what to install.
+
+* libevdev for external joystick. Internal OpenXR joysticks arent supported yet.
 
 ## Command line instructions
 
@@ -68,7 +72,7 @@ make -j 16
 
 cp ../assets/* .
 
-#Edit cam.json and styles.json to your needs.
+#Edit the json configuration files to your needs.
 
 ./SK-FPV
 

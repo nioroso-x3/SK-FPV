@@ -1,0 +1,123 @@
+{
+  "joystick_settings": {
+    "global_deadzone": 0.05,
+    "update_rate_hz": 20,
+    "enable_rc_override": true
+  },
+  "axis_mappings": [
+    {
+      "name": "left_stick_x",
+      "evdev_code": "ABS_X",
+      "rc_channel": 0,
+      "min_value": 0,
+      "max_value": 255,
+      "invert": false,
+      "deadzone": 0.05
+    },
+    {
+      "name": "left_stick_y",
+      "evdev_code": "ABS_Y",
+      "rc_channel": 1,
+      "min_value": 0,
+      "max_value": 255,
+      "invert": true,
+      "deadzone": 0.05
+    },
+    {
+      "name": "right_stick_x",
+      "evdev_code": "ABS_RX",
+      "rc_channel": 3,
+      "min_value": 0,
+      "max_value": 255,
+      "invert": false,
+      "deadzone": 0.05
+    },
+    {
+      "name": "right_stick_y",
+      "evdev_code": "ABS_RY",
+      "rc_channel": 2,
+      "min_value": 0,
+      "max_value": 255,
+      "invert": true,
+      "deadzone": 0.05,
+      "is_rate_axis": true,
+      "rate_scale": 250.0
+    },
+    {
+      "name": "left_trigger",
+      "evdev_code": "ABS_Z",
+      "rc_channel": 4,
+      "min_value": 0,
+      "max_value": 255,
+      "invert": false,
+      "deadzone": 0.02
+    },
+    {
+      "name": "right_trigger",
+      "evdev_code": "ABS_RZ",
+      "rc_channel": 5,
+      "min_value": 0,
+      "max_value": 255,
+      "invert": false,
+      "deadzone": 0.02
+    }
+  ],
+  "button_mappings": [
+    {
+      "name": "button_x",
+      "evdev_code": "BTN_GAMEPAD",
+      "rc_channel": -1,
+      "on_value": 2000,
+      "off_value": 1000,
+      "function": "hud_toggle"
+    },
+    {
+      "name": "button_circle",
+      "evdev_code": "BTN_GAMEPAD+1",
+      "rc_channel": 6,
+      "on_value": 2000,
+      "off_value": 1000,
+      "function": ""
+    },
+    {
+      "name": "button_square",
+      "evdev_code": "BTN_GAMEPAD+2",
+      "rc_channel": 7,
+      "on_value": 2000,
+      "off_value": 1000,
+      "function": ""
+    },
+    {
+      "name": "button_triangle",
+      "evdev_code": "BTN_GAMEPAD+3",
+      "rc_channel": -1,
+      "on_value": 2000,
+      "off_value": 1000,
+      "function": "cam_switch"
+    },
+    {
+      "name": "button_l1",
+      "evdev_code": "BTN_GAMEPAD+4",
+      "rc_channel": -1,
+      "on_value": 2000,
+      "off_value": 1000,
+      "function": "recenter_cameras"
+    },
+    {
+      "name": "button_r1",
+      "evdev_code": "BTN_GAMEPAD+5",
+      "rc_channel": -1,
+      "on_value": 2000,
+      "off_value": 1000,
+      "function": ""
+    },
+    {
+      "name": "button_start",
+      "evdev_code": "BTN_START",
+      "rc_channel": -1,
+      "on_value": 2000,
+      "off_value": 1000,
+      "function": "rc_toggle"
+    }
+  ]
+}

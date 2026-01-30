@@ -41,7 +41,7 @@ void drawHeading(Cairo::RefPtr<Cairo::Context> cr,
 
     float text_side_border = 5;
     float text_top_border = 4;
-    float length = text_side_border * 2 + text_width; // Total length
+    float length = text_side_border * 2 + text_width + 16; // Total length
     float height = text_top_border * 1.5 + font_size + length / 4; // Total height
 
     cr->move_to(-length / 2, 0);
@@ -599,6 +599,7 @@ void draw_cairo_hud()
     uint8_t c_lte_qual = lte_qual;
     float c_aoa = aoa;
     float c_ssa = ssa;
+    bool rc_mode = rc_override;
 
     /*int wfb_rx_avg_rssi = 0;
     int video_streams = 0;
@@ -648,10 +649,13 @@ void draw_cairo_hud()
     drawSimpleLabel(cr,(HUD_w/32)*27,(HUD_h/32)*13,"WFB",radio_rssi,0,30.0f);
     drawSimpleLabel(cr,(HUD_w/32)*27,(HUD_h/32)*14,"RC%",rc_pct,0,30.0f);
     drawSimpleLabel(cr, (HUD_w/32)*27, (HUD_h/2.0)+50,"RFALT",rngfnd,1,30.0f);
-    drawSimpleLabel(cr,(HUD_w/32)*28,(HUD_h/2)+100,"HOME",home_d,0,30.0f);
-    drawHomeDirection(cr, (HUD_w/32)*27+16,(HUD_h/2)+90,home_h,5);
+    if(home_d < 1000) drawSimpleLabel(cr,(HUD_w/32)*27,(HUD_h/2)+100,"H(m)",home_d,0,30.0f);
+    else drawSimpleLabel(cr,(HUD_w/32)*27,(HUD_h/2)+100,"H(km)",home_d/1000,1,30.0f);
+    drawHomeDirection(cr, (HUD_w/32)*27+16,(HUD_h/2)+128,home_h,5);
     drawDateTime(cr, (HUD_w/32)*12, (HUD_h/32)*31, gps_time, 30.0f);
-   
+    if(rc_mode) drawLabel(cr,0,(HUD_h/32)*32,"RC OVERRIDE",30);
+
+
     //translating, rolling and centering the canvas for the pitch ladder.
     cr->translate(HUD_w/2.0,HUD_h/2.0);
 

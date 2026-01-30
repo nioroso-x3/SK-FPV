@@ -21,19 +21,19 @@ FrameWriter::FrameWriter(std::string name,
 void FrameWriter::play(){
     playing = true;
 }
-void FrameWriter::start(std::string  name, 
-                        std::string  gst_pipeline, 
+void FrameWriter::start(std::string  name,
+                        std::string  gst_pipeline,
                         std::map<std::string,cv::Mat> &overlays,
                         std::map<std::string,cv::Size> &vsizes,
-                        tex_t        &vid0, 
-                        tex_t        &vid1, 
-                        tex_t        &ov0, 
-                        tex_t        &ov1, 
-                        bool         stab, 
-                        cv::Mat      K, 
-                        cv::Mat      D, 
-                        float        balance, 
-                        cv::Size     corr_ori, 
+                        tex_t        &vid0,
+                        tex_t        &vid1,
+                        tex_t        &ov0,
+                        tex_t        &ov1,
+                        bool         stab,
+                        cv::Mat      K,
+                        cv::Mat      D,
+                        float        balance,
+                        cv::Size     corr_ori,
                         int          type){
     this->name = name;
     this->oname = name + std::string("_1");
@@ -46,8 +46,11 @@ void FrameWriter::start(std::string  name,
     this->type = type;
     playing = true;
     run = true;
+    monitor_run = true;
+    last_frame_time = std::chrono::steady_clock::now();
     t = std::make_shared<std::thread>(&FrameWriter::stream, this, &vid0, &vid1, &ov0, &ov1, &overlays, &vsizes);
     t->detach();
+    start_monitor();
 }
 
 
@@ -57,7 +60,8 @@ void FrameWriter::stop(){
 void FrameWriter::terminate(){
    stop();
    run = false;
-   std::this_thread::sleep_for(std::chrono::milliseconds(50));
+   monitor_run = false;
+   std::this_thread::sleep_for(std::chrono::milliseconds(200));
 }
 
 void FrameWriter::toggleStab(){
@@ -81,11 +85,16 @@ void FrameWriter::stream(tex_t *vid0,
    std:: cout << "  Type: " << type << std::endl;
    while(cap.isOpened() && run){
       if(!playing){
-         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+         std::this_thread::sleep_for(std::chrono::milliseconds(200));
          continue;
       }
       cap.read(img);
-     
+
+      // Update frame timestamp when we receive a frame
+      if (!img.empty()) {
+          last_frame_time = std::chrono::steady_clock::now();
+      }
+
       //dual image
       if (type == 1){
           int w = img.cols;
@@ -138,6 +147,31 @@ void FrameWriter::stream(tex_t *vid0,
       }
    }
    cap.release();
+}
+
+void FrameWriter::start_monitor() {
+    monitor_thread = std::make_shared<std::thread>(&FrameWriter::monitor_video_timeout, this);
+    monitor_thread->detach();
+}
+
+void FrameWriter::monitor_video_timeout() {
+    while(monitor_run && run) {
+        auto now = std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+            now - last_frame_time).count();
+
+        if(duration > 2000) {
+            video_brightness.store(0.01f); // Darken to 1%
+        } else {
+            video_brightness.store(1.0f); // Full brightness
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    }
+}
+
+float FrameWriter::get_brightness() const {
+    return video_brightness.load();
 }
 
 FrameWriter::~FrameWriter(){

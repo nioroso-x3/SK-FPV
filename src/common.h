@@ -14,6 +14,7 @@
 #include <cmath>
 #include <map>
 #include "framegrabber.h"
+#include "joystick_input.h"
 
 using namespace mavsdk;
 using namespace sk;
@@ -118,10 +119,18 @@ extern float ssa;
 extern int cam_selector;
 
 //ground station rx stream stats
-extern std::map<std::string,std::vector<int>> wfb_rx; 
+extern std::map<std::string,std::vector<int>> wfb_rx;
+
+//hud mode
+extern bool hud_follow_head; 
+
+//rc mode
+extern bool rc_override;
+
 
 float get_heading(float,float,float,float);
 float get_distance(float,float,float,float);
+void recenter_cameras();
 
 
 #endif

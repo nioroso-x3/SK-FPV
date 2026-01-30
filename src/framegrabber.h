@@ -11,6 +11,7 @@
 #include <string>
 #include <chrono>
 #include <fstream>
+#include <atomic>
 #include <opencv2/opencv.hpp>
 #include <nlohmann/json.hpp>
 #include "stabilization.h"
@@ -21,23 +22,29 @@ using namespace sk;
 class FrameWriter{
   private:
     std::shared_ptr<std::thread> t;
+    std::shared_ptr<std::thread> monitor_thread;
     std::string name;
     std::string oname;
     std::string gst_pipeline;
     bool stab;
     bool playing;
     bool run;
+    std::atomic<bool> monitor_run{true};
     int type;
     cv::Mat K;
     cv::Mat D;
     cv::Size corr_ori;
     float balance;
-    void stream(tex_t *vid0, 
+    std::chrono::steady_clock::time_point last_frame_time;
+    std::atomic<float> video_brightness{1.0f};
+    void stream(tex_t *vid0,
                 tex_t *vid1,
                 tex_t *ov0,
                 tex_t *ov1,
                 std::map<std::string,cv::Mat> *overlays,
                 std::map<std::string,cv::Size> *vsizes);
+    void start_monitor();
+    void monitor_video_timeout();
   public:
     FrameWriter();
     ~FrameWriter();
@@ -73,6 +80,7 @@ class FrameWriter{
     void stop();
     void terminate();
     void toggleStab();
+    float get_brightness() const;
 };
 
 

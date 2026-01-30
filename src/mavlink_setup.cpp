@@ -1,5 +1,69 @@
 #include "mavlink_setup.h"
+#include "joystick_input.h"
+#include <algorithm>
 using namespace mavsdk;
+
+// Global MAVLink passthrough for RC override
+std::shared_ptr<mavsdk::MavlinkPassthrough> g_mavlink_passthrough = nullptr;
+
+// Helper function to find mode index in fmodes array
+int get_flight_mode_index(const std::string& mode_name) {
+    for (int i = 0; i < 25; i++) { // fmodes array size
+        if (fmodes[i] == mode_name) {
+            return i;
+        }
+    }
+    return -1; // Mode not found
+}
+
+// Helper function to check if RC disable switch is active
+bool is_rc_disable_switch_active() {
+    if (!g_joystick_config) return false;
+
+    const auto& settings = g_joystick_config->getSettings();
+    if (settings.rc_disable_switch_channel < 0 || settings.rc_disable_switch_channel >= 16) {
+        return false; // Disable switch not configured or out of range
+    }
+
+    // Check if the specified RC channel is above threshold
+    extern JoystickState g_joystick_state;
+    uint16_t channel_value = g_joystick_state.rc_channels[settings.rc_disable_switch_channel];
+    return channel_value > settings.rc_disable_switch_threshold;
+}
+
+// Helper function to send flight mode command
+void send_flight_mode_command(const std::string& mode_name) {
+    if (!g_mavlink_passthrough) return;
+
+    // Check RC disable switch first (master kill switch)
+    if (is_rc_disable_switch_active()) {
+        std::cout << "Flight mode command blocked - RC disable switch is active" << std::endl;
+        return;
+    }
+
+    // Only allow flight mode commands when RC override is active
+    if (!rc_override) {
+        std::cout << "Flight mode command blocked - RC override not active" << std::endl;
+        return;
+    }
+
+    int mode_index = get_flight_mode_index(mode_name);
+    if (mode_index >= 0) {
+        g_mavlink_passthrough->queue_message([=](MavlinkAddress mavlink_address, uint8_t channel) {
+            mavlink_message_t msg;
+            mavlink_msg_set_mode_pack(
+                mavlink_address.system_id,
+                mavlink_address.component_id,
+                &msg,
+                1,  // target_system
+                MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
+                mode_index
+            );
+            return msg;
+        });
+        std::cout << "Setting flight mode: " << mode_name << " (mode " << mode_index << ")" << std::endl;
+    }
+}
 
 void start_mavlink_thread(){
   bool found_wfb = false;
@@ -22,6 +86,9 @@ void start_mavlink_thread(){
    // Instantiate plugins.
   auto telemetry = mavsdk::Telemetry{system.value()};
   auto passthrough = mavsdk::MavlinkPassthrough{system.value()};
+
+  // Store passthrough globally for RC override
+  g_mavlink_passthrough = std::make_shared<mavsdk::MavlinkPassthrough>(system.value());
   telemetry.subscribe_position([](Telemetry::Position position) {
      vh_pos = position;
   });
@@ -161,4 +228,105 @@ void start_mavlink_thread(){
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
   }
 }
+
+void start_rc_override_thread() {
+  std::cout << "Starting RC override thread" << std::endl;
+
+  // Wait for MAVLink passthrough to be ready
+  while (!g_mavlink_passthrough) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+
+  // Get update rate from config (default 20Hz = 50ms)
+  int update_interval_ms = 50;
+  if (g_joystick_config && g_joystick_config->getSettings().enable_rc_override) {
+    update_interval_ms = 1000 / g_joystick_config->getSettings().update_rate_hz;
+  }
+
+  std::cout << "RC override running at " << (1000.0f / update_interval_ms) << " Hz" << std::endl;
+
+  auto last_update = std::chrono::steady_clock::now();
+
+  while (true) {
+    // Check RC disable switch first (master kill switch)
+    if (is_rc_disable_switch_active()) {
+      // Force RC override OFF when disable switch is active
+      if (g_joystick_config && g_joystick_config->getSettings().enable_rc_override) {
+        g_joystick_config->setRcOverride(false);
+        std::cout << "RC disable switch active - forcing RC override OFF" << std::endl;
+      }
+    }
+
+    // Check if RC override is enabled and joystick is connected
+    if (g_joystick_config &&
+        g_joystick_config->getSettings().enable_rc_override &&
+        g_joystick_state.connected &&
+        !is_rc_disable_switch_active()) {
+
+      // Send RC override message using queue_message with lambda
+      try {
+        g_mavlink_passthrough->queue_message([&](MavlinkAddress mavlink_address, uint8_t channel) {
+          mavlink_message_t msg;
+
+          // Pack RC channels override message
+          mavlink_msg_rc_channels_override_pack(
+            mavlink_address.system_id,
+            mavlink_address.component_id,
+            &msg,
+            1,  // target_system (autopilot)
+            MAV_COMP_ID_AUTOPILOT1,  // target_component
+            g_joystick_state.rc_channels[0],   // chan1_raw (Roll)
+            g_joystick_state.rc_channels[1],   // chan2_raw (Pitch)
+            g_joystick_state.rc_channels[2],   // chan3_raw (Throttle)
+            g_joystick_state.rc_channels[3],   // chan4_raw (Yaw)
+            g_joystick_state.rc_channels[4],   // chan5_raw (Aux1)
+            g_joystick_state.rc_channels[5],   // chan6_raw (Aux2)
+            g_joystick_state.rc_channels[6],   // chan7_raw (Aux3)
+            g_joystick_state.rc_channels[7],   // chan8_raw (Aux4)
+            0,  // chan9_raw (unused)
+            0,  // chan10_raw (unused)
+            0,  // chan11_raw (unused)
+            0,  // chan12_raw (unused)
+            0,  // chan13_raw (unused)
+            0,  // chan14_raw (unused)
+            0,  // chan15_raw (unused)
+            0,  // chan16_raw (unused)
+            0,  // chan17_raw (unused)
+            0   // chan18_raw (unused)
+          );
+
+          return msg;
+        });
+      } catch (const std::exception& e) {
+        // Only log occasional failures to avoid spam
+        static int error_count = 0;
+        if (error_count++ % 100 == 0) {
+          std::cerr << "Failed to send RC override: " << e.what() << std::endl;
+        }
+      }
+    }
+
+    // Precise timing control
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_update);
+
+    if (elapsed.count() < update_interval_ms) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(update_interval_ms - elapsed.count()));
+    }
+
+    last_update = std::chrono::steady_clock::now();
+  }
+
+  std::cout << "RC override thread exited" << std::endl;
+}
+
+// Flight mode functions
+void set_flight_mode_manual() { send_flight_mode_command("MANUAL"); }
+void set_flight_mode_stabilize() { send_flight_mode_command("STABILIZE"); }
+void set_flight_mode_fbwa() { send_flight_mode_command("FBWA"); }
+void set_flight_mode_cruise() { send_flight_mode_command("CRUISE"); }
+void set_flight_mode_auto() { send_flight_mode_command("Auto"); }
+void set_flight_mode_rtl() { send_flight_mode_command("RTL"); }
+void set_flight_mode_loiter() { send_flight_mode_command("Loiter"); }
+void set_flight_mode_guided() { send_flight_mode_command("Guided"); }
 
