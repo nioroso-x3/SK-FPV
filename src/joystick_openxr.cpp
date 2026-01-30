@@ -51,6 +51,14 @@ void OpenXRJoystickInput::start() {
             // Copy state to global
             g_joystick_state = state;
 
+            // Debug RC values occasionally
+            static int rc_debug_counter = 0;
+            if (rc_debug_counter % 200 == 0) { // Every 10 seconds at 20Hz
+                std::cout << "RC values: [0]=" << state.rc_channels[0] << " [1]=" << state.rc_channels[1]
+                          << " [2]=" << state.rc_channels[2] << " [3]=" << state.rc_channels[3] << std::endl;
+            }
+            rc_debug_counter++;
+
             // Update at configured rate (default 20Hz = 50ms)
             int update_rate = g_joystick_config ? g_joystick_config->getSettings().update_rate_hz : 20;
             std::this_thread::sleep_for(std::chrono::milliseconds(1000 / update_rate));
@@ -370,9 +378,11 @@ void OpenXRJoystickInput::loadConfigurationMappings() {
 
     for (const auto& axis_config : g_joystick_config->getAxisConfigs()) {
         std::cout << "  Checking axis config: " << axis_config.name << " code=" << axis_config.evdev_code << std::endl;
-        auto it = evdev_to_openxr.find(axis_config.evdev_code);
-        if (it != evdev_to_openxr.end()) {
-            std::cout << "    -> Mapped to OpenXR code " << it->second << std::endl;
+
+        // Check if this is already an OpenXR code (direct mapping)
+        if (axis_config.evdev_code >= 1000 && axis_config.evdev_code <= 1010) {
+            std::cout << "    -> Direct OpenXR axis code " << axis_config.evdev_code << std::endl;
+
             AxisMapping mapping;
             mapping.rc_channel = axis_config.rc_channel;
             mapping.invert = axis_config.invert;
@@ -384,7 +394,34 @@ void OpenXRJoystickInput::loadConfigurationMappings() {
             mapping.rate_current_value = axis_config.rate_init_value;
             mapping.last_update_time = std::chrono::steady_clock::time_point{};
 
-            axis_mappings[it->second] = mapping;
+            axis_mappings[axis_config.evdev_code] = mapping;
+            std::cout << "Loaded OpenXR axis mapping: openxr=" << axis_config.evdev_code
+                      << " rc_channel=" << axis_config.rc_channel
+                      << " is_rate=" << axis_config.is_rate_axis << std::endl;
+        } else {
+            // Try evdev to OpenXR mapping for libevdev compatibility
+            auto it = evdev_to_openxr.find(axis_config.evdev_code);
+            if (it != evdev_to_openxr.end()) {
+                std::cout << "    -> Mapped evdev to OpenXR code " << it->second << std::endl;
+                AxisMapping mapping;
+                mapping.rc_channel = axis_config.rc_channel;
+                mapping.invert = axis_config.invert;
+                mapping.deadzone = axis_config.deadzone;
+                mapping.is_rate_axis = axis_config.is_rate_axis;
+                mapping.rate_scale = axis_config.rate_scale;
+                mapping.expo = axis_config.expo;
+                mapping.rate_init_value = axis_config.rate_init_value;
+                mapping.rate_current_value = axis_config.rate_init_value;
+                mapping.last_update_time = std::chrono::steady_clock::time_point{};
+
+                axis_mappings[it->second] = mapping;
+                std::cout << "Loaded OpenXR axis mapping: evdev=" << axis_config.evdev_code
+                          << " -> openxr=" << it->second
+                          << " rc_channel=" << axis_config.rc_channel
+                          << " is_rate=" << axis_config.is_rate_axis << std::endl;
+            } else {
+                std::cout << "    -> No mapping found for axis code " << axis_config.evdev_code << std::endl;
+            }
         }
     }
 
