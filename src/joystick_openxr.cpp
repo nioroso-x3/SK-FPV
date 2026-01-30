@@ -400,9 +400,15 @@ void OpenXRJoystickInput::loadConfigurationMappings() {
     };
 
     // Load button mappings from config
+    std::cout << "OpenXR: Found " << g_joystick_config->getButtonConfigs().size() << " button configs in main config" << std::endl;
+
     for (const auto& button_config : g_joystick_config->getButtonConfigs()) {
-        auto it = evdev_to_openxr_buttons.find(button_config.evdev_code);
-        if (it != evdev_to_openxr_buttons.end()) {
+        std::cout << "  Checking button config: " << button_config.name << " code=" << button_config.evdev_code << std::endl;
+
+        // Check if this is already an OpenXR code (direct mapping)
+        if (button_config.evdev_code >= 2000 && button_config.evdev_code <= 2010) {
+            std::cout << "    -> Direct OpenXR code " << button_config.evdev_code << std::endl;
+
             ButtonMapping mapping;
             mapping.rc_channel = button_config.rc_channel;
             mapping.on_value = button_config.on_value;
@@ -423,11 +429,43 @@ void OpenXRJoystickInput::loadConfigurationMappings() {
                 }
             }
 
-            button_mappings[it->second] = mapping;
-            std::cout << "Loaded OpenXR button mapping: evdev=" << button_config.evdev_code
-                      << " -> openxr=" << it->second
+            button_mappings[button_config.evdev_code] = mapping;
+            std::cout << "Loaded OpenXR button mapping: openxr=" << button_config.evdev_code
                       << " function=" << button_config.function
                       << " has_callback=" << (mapping.callback ? "yes" : "no") << std::endl;
+        } else {
+            // Try evdev to OpenXR mapping for libevdev compatibility
+            auto it = evdev_to_openxr_buttons.find(button_config.evdev_code);
+            if (it != evdev_to_openxr_buttons.end()) {
+                std::cout << "    -> Mapped evdev to OpenXR code " << it->second << std::endl;
+                ButtonMapping mapping;
+                mapping.rc_channel = button_config.rc_channel;
+                mapping.on_value = button_config.on_value;
+                mapping.off_value = button_config.off_value;
+                mapping.was_pressed = false;
+
+                // Set up function callback if specified
+                if (!button_config.function.empty()) {
+                    auto func = JoystickConfig::getFunction(button_config.function);
+                    if (func) {
+                        // Flight mode functions use hold callback for continuous sending
+                        if (button_config.function.find("mode_") == 0) {
+                            mapping.hold_callback = func;
+                            std::cout << "Assigned " << button_config.function << " as hold callback (continuous send)" << std::endl;
+                        } else {
+                            mapping.callback = func;
+                        }
+                    }
+                }
+
+                button_mappings[it->second] = mapping;
+                std::cout << "Loaded OpenXR button mapping: evdev=" << button_config.evdev_code
+                          << " -> openxr=" << it->second
+                          << " function=" << button_config.function
+                          << " has_callback=" << (mapping.callback ? "yes" : "no") << std::endl;
+            } else {
+                std::cout << "    -> No mapping found for button code " << button_config.evdev_code << std::endl;
+            }
         }
     }
 }
