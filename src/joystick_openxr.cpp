@@ -154,7 +154,7 @@ void OpenXRJoystickInput::updateControllerState() {
     if (right_controller) prev_right_controller = *right_controller;
 }
 
-void OpenXRJoystickInput::processButton(OpenXRButton button_code, bool pressed) {
+void OpenXRJoystickInput::processButton(int button_code, bool pressed) {
     // Debug output for button presses
     if (pressed) {
         std::cout << "OpenXR Button pressed: " << button_code << std::endl;
@@ -192,15 +192,13 @@ void OpenXRJoystickInput::processButton(OpenXRButton button_code, bool pressed) 
 
     // Update general button state arrays (map OpenXR buttons to indices 0-15)
     int button_index = -1;
-    switch (button_code) {
-        case OPENXR_LEFT_X1: button_index = 0; break;
-        case OPENXR_LEFT_X2: button_index = 1; break;
-        case OPENXR_LEFT_STICK_CLICK: button_index = 2; break;
-        case OPENXR_RIGHT_X1: button_index = 3; break;
-        case OPENXR_RIGHT_X2: button_index = 4; break;
-        case OPENXR_RIGHT_STICK_CLICK: button_index = 5; break;
-        case OPENXR_MENU_BUTTON: button_index = 6; break;
-    }
+    if (button_code == OPENXR_LEFT_X1) button_index = 0;
+    else if (button_code == OPENXR_LEFT_X2) button_index = 1;
+    else if (button_code == OPENXR_LEFT_STICK_CLICK) button_index = 2;
+    else if (button_code == OPENXR_RIGHT_X1) button_index = 3;
+    else if (button_code == OPENXR_RIGHT_X2) button_index = 4;
+    else if (button_code == OPENXR_RIGHT_STICK_CLICK) button_index = 5;
+    else if (button_code == OPENXR_MENU_BUTTON) button_index = 6;
 
     if (button_index >= 0 && button_index < 16) {
         bool was_pressed = state.buttons[button_index];

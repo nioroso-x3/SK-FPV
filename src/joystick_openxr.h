@@ -68,7 +68,7 @@ private:
     };
 
     void updateControllerState();
-    void processButton(OpenXRButton button_code, bool pressed);
+    void processButton(int button_code, bool pressed);
     float normalizeAxis(float raw_value, const AxisMapping& mapping);
     void updateRCChannels();
     void loadConfigurationMappings();
